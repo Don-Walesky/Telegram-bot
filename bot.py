@@ -29,6 +29,7 @@ from sportybet_booking import SportyBetBookingClient, BookingSlipResponse
 from channel_monitor import ChannelMonitorService
 from code_converter import BetCodeConverterService
 from learning_engine import StrategyLearningEngine
+from builder import CustomSlipBuilder
 
 # Load environment variables
 load_dotenv()
@@ -46,26 +47,27 @@ def build_main_menu_keyboard() -> InlineKeyboardMarkup:
     """Construct main menu inline buttons."""
     keyboard = [
         [
+            InlineKeyboardButton("⚙️ Custom Slip Builder", callback_data="wiz_start"),
+            InlineKeyboardButton("🔍 Scan & Match Catalog", callback_data="cmd_scan"),
+        ],
+        [
             InlineKeyboardButton("📅 Today's Scan", callback_data="cmd_today"),
             InlineKeyboardButton("📆 Tomorrow's Scan", callback_data="cmd_tomorrow"),
         ],
         [
             InlineKeyboardButton("🏆 Select Sports", callback_data="cmd_sports"),
-            InlineKeyboardButton("🔍 Scan & Match Catalog", callback_data="cmd_scan"),
-        ],
-        [
             InlineKeyboardButton("🎟️ View Current Slip", callback_data="cmd_slip"),
+        ],
+        [
             InlineKeyboardButton("📌 Get Booking Code", callback_data="cmd_code"),
-        ],
-        [
             InlineKeyboardButton("🧠 Learning Engine", callback_data="cmd_learn"),
+        ],
+        [
             InlineKeyboardButton("📡 Monitored Channels", callback_data="menu_channels"),
-        ],
-        [
             InlineKeyboardButton("📊 System Status", callback_data="cmd_status"),
-            InlineKeyboardButton("🔄 Convert Code", callback_data="menu_convert"),
         ],
         [
+            InlineKeyboardButton("🔄 Convert Code", callback_data="menu_convert"),
             InlineKeyboardButton("ℹ️ Help & Commands", callback_data="menu_help"),
         ],
     ]
@@ -89,6 +91,76 @@ def build_sport_keyboard() -> InlineKeyboardMarkup:
         [
             InlineKeyboardButton("🔙 Main Menu", callback_data="menu_main"),
         ],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def build_wiz_date_keyboard() -> InlineKeyboardMarkup:
+    keyboard = [
+        [
+            InlineKeyboardButton("📅 Today", callback_data="wiz_date_Today"),
+            InlineKeyboardButton("📆 Tomorrow", callback_data="wiz_date_Tomorrow"),
+        ],
+        [InlineKeyboardButton("🔙 Main Menu", callback_data="menu_main")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def build_wiz_sport_keyboard() -> InlineKeyboardMarkup:
+    keyboard = [
+        [
+            InlineKeyboardButton("🏆 All Sports", callback_data="wiz_sport_All"),
+            InlineKeyboardButton("⚽ Football", callback_data="wiz_sport_Football"),
+        ],
+        [
+            InlineKeyboardButton("🏀 Basketball", callback_data="wiz_sport_Basketball"),
+            InlineKeyboardButton("🎾 Tennis", callback_data="wiz_sport_Tennis"),
+        ],
+        [InlineKeyboardButton("🏒 Ice Hockey", callback_data="wiz_sport_Ice Hockey")],
+        [InlineKeyboardButton("🔙 Main Menu", callback_data="menu_main")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def build_wiz_odds_keyboard() -> InlineKeyboardMarkup:
+    keyboard = [
+        [
+            InlineKeyboardButton("🎯 1.5x Odds", callback_data="wiz_odds_1.5"),
+            InlineKeyboardButton("🎯 2.0x Odds", callback_data="wiz_odds_2.0"),
+        ],
+        [
+            InlineKeyboardButton("🎯 3.0x Odds", callback_data="wiz_odds_3.0"),
+            InlineKeyboardButton("🎯 5.0x Odds", callback_data="wiz_odds_5.0"),
+        ],
+        [InlineKeyboardButton("🔙 Main Menu", callback_data="menu_main")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def build_wiz_count_keyboard() -> InlineKeyboardMarkup:
+    keyboard = [
+        [
+            InlineKeyboardButton("⚽ 2 Games", callback_data="wiz_count_2"),
+            InlineKeyboardButton("⚽ 3 Games", callback_data="wiz_count_3"),
+            InlineKeyboardButton("⚽ 4 Games", callback_data="wiz_count_4"),
+        ],
+        [
+            InlineKeyboardButton("⚽ 5 Games", callback_data="wiz_count_5"),
+            InlineKeyboardButton("⚽ 7 Games", callback_data="wiz_count_7"),
+        ],
+        [InlineKeyboardButton("🔙 Main Menu", callback_data="menu_main")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def build_wiz_prob_keyboard() -> InlineKeyboardMarkup:
+    keyboard = [
+        [
+            InlineKeyboardButton("🛡️ 85% Safety", callback_data="wiz_prob_85"),
+            InlineKeyboardButton("🛡️ 90% Safety", callback_data="wiz_prob_90"),
+            InlineKeyboardButton("🛡️ 95% Ultra Safe", callback_data="wiz_prob_95"),
+        ],
+        [InlineKeyboardButton("🔙 Main Menu", callback_data="menu_main")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -453,6 +525,7 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         help_text = (
             "ℹ️ *COMMANDS GUIDE*\n\n"
             "• `/start` - Show main interactive menu\n"
+            "• `/custom` - Launch 5-step custom bet slip builder wizard\n"
             "• `/today` - Select today's unstarted fixtures\n"
             "• `/tomorrow` - Select tomorrow's unstarted fixtures\n"
             "• `/sports` - Filter by sport category\n"
@@ -466,6 +539,100 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         )
         await query.message.edit_text(
             help_text, reply_markup=build_main_menu_keyboard(), parse_mode="Markdown"
+        )
+    elif data == "wiz_start":
+        await custom_command(update, context)
+    elif data.startswith("wiz_date_"):
+        sel_date = data.replace("wiz_date_", "")
+        context.user_data.setdefault("wiz", {})["date"] = sel_date
+        text = (
+            f"⚙️ *CUSTOM SLIP BUILDER WIZARD*\n\n"
+            f"📅 Date Selected: `{sel_date}`\n\n"
+            f"📌 *Step 2 of 5: Select Sport Category*"
+        )
+        await query.message.edit_text(
+            text, reply_markup=build_wiz_sport_keyboard(), parse_mode="Markdown"
+        )
+    elif data.startswith("wiz_sport_"):
+        sel_sport = data.replace("wiz_sport_", "")
+        context.user_data.setdefault("wiz", {})["sport"] = sel_sport
+        wiz = context.user_data.get("wiz", {})
+        text = (
+            f"⚙️ *CUSTOM SLIP BUILDER WIZARD*\n\n"
+            f"📅 Date: `{wiz.get('date', 'Today')}` | 🏆 Sport: `{sel_sport}`\n\n"
+            f"📌 *Step 3 of 5: Select Target Accumulator Odds*"
+        )
+        await query.message.edit_text(
+            text, reply_markup=build_wiz_odds_keyboard(), parse_mode="Markdown"
+        )
+    elif data.startswith("wiz_odds_"):
+        sel_odds = float(data.replace("wiz_odds_", ""))
+        context.user_data.setdefault("wiz", {})["odds"] = sel_odds
+        wiz = context.user_data.get("wiz", {})
+        text = (
+            f"⚙️ *CUSTOM SLIP BUILDER WIZARD*\n\n"
+            f"📅 Date: `{wiz.get('date', 'Today')}` | 🏆 Sport: `{wiz.get('sport', 'All')}` | 🎯 Target Odds: `{sel_odds}x`\n\n"
+            f"📌 *Step 4 of 5: Select Number of Matches*"
+        )
+        await query.message.edit_text(
+            text, reply_markup=build_wiz_count_keyboard(), parse_mode="Markdown"
+        )
+    elif data.startswith("wiz_count_"):
+        sel_count = int(data.replace("wiz_count_", ""))
+        context.user_data.setdefault("wiz", {})["count"] = sel_count
+        wiz = context.user_data.get("wiz", {})
+        text = (
+            f"⚙️ *CUSTOM SLIP BUILDER WIZARD*\n\n"
+            f"📅 Date: `{wiz.get('date', 'Today')}` | 🏆 Sport: `{wiz.get('sport', 'All')}`\n"
+            f"🎯 Target Odds: `{wiz.get('odds', 2.0)}x` | ⚽ Games: `{sel_count}`\n\n"
+            f"📌 *Step 5 of 5: Select Minimum Probability Threshold*"
+        )
+        await query.message.edit_text(
+            text, reply_markup=build_wiz_prob_keyboard(), parse_mode="Markdown"
+        )
+    elif data.startswith("wiz_prob_"):
+        sel_prob = float(data.replace("wiz_prob_", ""))
+        wiz = context.user_data.get("wiz", {})
+        target_date = wiz.get("date", "Today")
+        target_sport = wiz.get("sport", "All")
+        target_odds = wiz.get("odds", 2.0)
+        game_count = wiz.get("count", 3)
+
+        await query.message.edit_text(
+            f"⚙️ *Generating custom multi-sport bet slip...*\n"
+            f"Date: `{target_date}` | Sport: `{target_sport}` | Odds: `{target_odds}x` | Games: `{game_count}` | Safety: `{sel_prob}%`",
+            parse_mode="Markdown",
+        )
+
+        res = CustomSlipBuilder.generate_custom_slip(
+            target_odds=target_odds,
+            game_count=game_count,
+            min_probability=sel_prob,
+            match_date=target_date,
+            sport=target_sport,
+        )
+        context.user_data["current_slip"] = res
+
+        await query.message.edit_text(
+            res.formatted_summary, reply_markup=build_main_menu_keyboard(), parse_mode="Markdown"
+        )
+
+
+async def custom_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Start interactive 5-step custom bet slip wizard."""
+    context.user_data["wiz"] = {}
+    text = (
+        "⚙️ *CUSTOM MULTI-SPORT SLIP BUILDER WIZARD*\n\n"
+        "Welcome! Follow this 5-step interactive wizard to build a tailored bet slip matching your exact odds, game count, and probability preferences.\n\n"
+        "📌 *Step 1 of 5: Select Match Date*"
+    )
+    if update.callback_query:
+        await update.callback_query.message.edit_text(
+            text, reply_markup=build_wiz_date_keyboard(), parse_mode="Markdown"
+        )
+    else:
+        await update.message.reply_text(
+            text, reply_markup=build_wiz_date_keyboard(), parse_mode="Markdown"
         )
 
 
@@ -498,7 +665,7 @@ async def hourly_market_learning_job(context: ContextTypes.DEFAULT_TYPE) -> None
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     text = update.message.text.strip()
     await update.message.reply_text(
-        f"You sent: `{text}`\n\n💡 Use `/scan` to discover fixtures and generate SportyBet booking codes!",
+        f"You sent: `{text}`\n\n💡 Use `/scan` or `/custom` to discover fixtures and generate SportyBet booking codes!",
         reply_markup=build_main_menu_keyboard(),
         parse_mode="Markdown",
     )
@@ -515,6 +682,7 @@ def main() -> None:
     app = ApplicationBuilder().token(TOKEN).post_init(post_init).build()
 
     app.add_handler(CommandHandler("start", start_command))
+    app.add_handler(CommandHandler("custom", custom_command))
     app.add_handler(CommandHandler("today", today_command))
     app.add_handler(CommandHandler("tomorrow", tomorrow_command))
     app.add_handler(CommandHandler("sports", sports_command))
