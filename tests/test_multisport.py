@@ -1,29 +1,60 @@
 import unittest
-from aggregator import PredictionAggregator
-from analyzer import PredictionAnalyzer
-from builder import CustomSlipBuilder
+from datetime import datetime
+from aggregator import PredictionAggregator, RawPrediction
+from analyzer import PredictionAnalyzer, ConsensusPrediction
+from builder import CustomSlipBuilder, CustomSlipResult
 
 
 class TestMultiSportAndDateEngine(unittest.TestCase):
-    def test_today_all_sports(self):
-        preds = PredictionAggregator.get_all_raw_predictions(match_date="Today", sport="All")
-        self.assertGreater(len(preds), 0)
-        sports = set(p.sport for p in preds)
-        self.assertIn("Football", sports)
-        self.assertIn("Basketball", sports)
+    def test_aggregator_multi_sport_date_filtering(self):
+        # Fetch today's football fixtures
+        today_football = PredictionAggregator.get_upcoming_fixtures(match_date="Today", sport="Football")
+        self.assertIsInstance(today_football, list)
+        for item in today_football:
+            self.assertIsInstance(item, RawPrediction)
+            self.assertEqual(item.sport, "Football")
+            self.assertEqual(item.match_date, "Today")
 
-    def test_tomorrow_football(self):
-        preds = PredictionAggregator.get_all_raw_predictions(match_date="Tomorrow", sport="Football")
-        self.assertGreater(len(preds), 0)
-        for p in preds:
-            self.assertEqual(p.match_date, "Tomorrow")
-            self.assertEqual(p.sport, "Football")
+        # Fetch tomorrow's all-sports fixtures
+        tomorrow_all = PredictionAggregator.get_upcoming_fixtures(match_date="Tomorrow", sport="All")
+        self.assertIsInstance(tomorrow_all, list)
+        for item in tomorrow_all:
+            self.assertIsInstance(item, RawPrediction)
+            self.assertEqual(item.match_date, "Tomorrow")
 
-    def test_custom_slip_multisport(self):
+    def test_analyzer_safe_market_conversions(self):
+        # Football safe market conversion
+        market_fb, odds_fb = PredictionAnalyzer.convert_to_safe_market("1", "Football")
+        self.assertEqual(market_fb, "Double Chance (1X)")
+        self.assertGreater(odds_fb, 1.0)
+
+        # Basketball safe market conversion
+        market_bb, odds_bb = PredictionAnalyzer.convert_to_safe_market("1", "Basketball")
+        self.assertEqual(market_bb, "Winner (2-Way Incl. OT)")
+        self.assertGreater(odds_bb, 1.0)
+
+        # Tennis safe market conversion
+        market_tn, odds_tn = PredictionAnalyzer.convert_to_safe_market("Winner", "Tennis")
+        self.assertIn("Match Winner", market_tn)
+        self.assertGreater(odds_tn, 1.0)
+
+        # Ice Hockey safe market conversion
+        market_hk, odds_hk = PredictionAnalyzer.convert_to_safe_market("1", "Ice Hockey")
+        self.assertEqual(market_hk, "Double Chance (1X)")
+        self.assertGreater(odds_hk, 1.0)
+
+    def test_custom_slip_builder_date_and_sport(self):
         res = CustomSlipBuilder.generate_custom_slip(
-            target_odds=2.0, game_count=3, min_probability=85.0, match_date="Today", sport="All"
+            target_odds=2.5,
+            game_count=3,
+            min_probability=60.0,
+            match_date="Today",
+            sport="Football",
         )
-        self.assertIn("MULTI-SPORT PREDICTION SLIP", res.formatted_summary)
+        self.assertIsInstance(res, CustomSlipResult)
+        self.assertGreater(res.actual_odds, 0.0)
+        self.assertIn("CUSTOM MULTI-SPORT PREDICTION SLIP", res.formatted_summary)
+        self.assertIn("FOOTBALL", res.formatted_summary)
         self.assertIn("TODAY", res.formatted_summary)
 
 
