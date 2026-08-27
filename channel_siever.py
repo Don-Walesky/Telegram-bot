@@ -101,11 +101,7 @@ class ChannelSlipSiever:
                 )
 
         # Build booking slip via SportyBet Booking Client
-        slip_response = SportyBetBookingClient.build_sportybet_slip(sieved_selections)
-        slip_response.title_header = (
-            f"📡 *WATCHED CHANNELS SIEVED BET SLIP*\n"
-            f"🛡️ Safety Threshold: `{min_probability}%` | ⚽ Games: `{len(sieved_selections)}`"
-        )
+        slip_response = SportyBetBookingClient.generate_booking_code(sieved_selections)
         return slip_response
 
 
