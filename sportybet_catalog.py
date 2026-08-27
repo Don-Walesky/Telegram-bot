@@ -22,6 +22,10 @@ HEADERS = {
         "AppleWebKit/537.36 (KHTML, Gecko) Chrome/122.0.0.0 Safari/537.36"
     ),
     "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://www.sportybet.com/ng/",
+    "Origin": "https://www.sportybet.com",
+    "Clientid": "web",
 }
 
 
@@ -50,27 +54,69 @@ class SportyBetCatalogService:
     def fetch_sportybet_catalog(cls, sport: str = "Football") -> List[Dict]:
         """
         Queries SportyBet live catalog for scheduled upcoming events.
+        Handles 'All' sports by iterating through Football, Basketball, Tennis, and Ice Hockey.
         """
         sport_id_map = {
             "football": "sr:sport:1",
+            "soccer": "sr:sport:1",
             "basketball": "sr:sport:2",
             "tennis": "sr:sport:5",
             "ice hockey": "sr:sport:4",
+            "hockey": "sr:sport:4",
         }
-        sport_id = sport_id_map.get(sport.lower(), "sr:sport:1")
 
-        try:
-            with httpx.Client(timeout=8.0) as client:
-                params = {"sportId": sport_id, "_t": str(int(datetime.now().timestamp() * 1000))}
-                resp = client.get(cls.POPULAR_EVENTS_URL, params=params, headers=HEADERS)
-                if resp.status_code == 200:
-                    data = resp.json()
-                    if data.get("bizCode") == 10000 and data.get("data"):
-                        return data.get("data", [])
-        except Exception as e:
-            logger.warning(f"SportyBet catalog fetch error for {sport}: {e}")
+        if sport.lower() == "all":
+            target_sports = ["football", "basketball", "tennis", "ice hockey"]
+        else:
+            target_sports = [sport.lower()]
 
-        return []
+        all_events: List[Dict] = []
+
+        for target in target_sports:
+            sport_id = sport_id_map.get(target, "sr:sport:1")
+            endpoints = [cls.POPULAR_EVENTS_URL, cls.QUERY_EVENTS_URL]
+
+            for url in endpoints:
+                try:
+                    with httpx.Client(timeout=8.0) as client:
+                        params = {
+                            "sportId": sport_id,
+                            "_t": str(int(datetime.now().timestamp() * 1000)),
+                        }
+                        resp = client.get(url, params=params, headers=HEADERS)
+                        logger.info(f"SportyBet catalog query [{target}] [{url}]: HTTP {resp.status_code}")
+                        if resp.status_code == 200:
+                            data = resp.json()
+                            if data.get("bizCode") == 10000 and data.get("data"):
+                                raw_items = data.get("data", [])
+                                flattened = cls._flatten_sportybet_events(raw_items)
+                                if flattened:
+                                    all_events.extend(flattened)
+                                    break
+                except Exception as e:
+                    logger.warning(f"SportyBet catalog fetch error for {target} [{url}]: {e}")
+
+        logger.info(f"SportyBet catalog query finished. Flattened event count: {len(all_events)}")
+        return all_events
+
+    @classmethod
+    def _flatten_sportybet_events(cls, items: List[Dict]) -> List[Dict]:
+        """
+        Flattens raw SportyBet response items (which can contain tournament wrappers or nested event arrays).
+        """
+        events: List[Dict] = []
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            # If item contains a nested 'events' array (tournament wrapper)
+            if "events" in item and isinstance(item["events"], list):
+                for sub_event in item["events"]:
+                    if isinstance(sub_event, dict):
+                        events.append(sub_event)
+            elif "homeTeamName" in item or "eventId" in item:
+                events.append(item)
+
+        return events
 
     @staticmethod
     def _normalize_name(name: str) -> str:
@@ -100,8 +146,8 @@ class SportyBetCatalogService:
         best_score = 0.0
 
         for sb_event in sportybet_events:
-            sb_home = sb_event.get("homeTeamName", "")
-            sb_away = sb_event.get("awayTeamName", "")
+            sb_home = sb_event.get("homeTeamName") or sb_event.get("homeTeam", {}).get("name", "")
+            sb_away = sb_event.get("awayTeamName") or sb_event.get("awayTeam", {}).get("name", "")
 
             home_sim = cls.similarity_score(fixture.home_team, sb_home)
             away_sim = cls.similarity_score(fixture.away_team, sb_away)
@@ -121,14 +167,16 @@ class SportyBetCatalogService:
                 best_match = sb_event
 
         if best_match:
+            h_name = best_match.get("homeTeamName", "")
+            a_name = best_match.get("awayTeamName", "")
             logger.info(
-                f"Successfully matched '{fixture.home_team} vs {fixture.away_team}' "
-                f"to SportyBet '{best_match.get('homeTeamName')} vs {best_match.get('awayTeamName')}' (Confidence: {best_score:.2f})"
+                f"Matched '{fixture.home_team} vs {fixture.away_team}' "
+                f"to SportyBet '{h_name} vs {a_name}' (Confidence: {best_score:.2f})"
             )
             return best_match
 
         logger.info(
-            f"Unmapped event: Could not match '{fixture.home_team} vs {fixture.away_team}' to SportyBet catalog with high confidence."
+            f"Unmapped event: Could not match '{fixture.home_team} vs {fixture.away_team}' to SportyBet catalog."
         )
         return None
 
@@ -140,7 +188,7 @@ class SportyBetCatalogService:
         Extracts available market outcomes and live decimal odds from a SportyBet catalog event.
         """
         selections: List[MappedSportyBetSelection] = []
-        event_id = sb_event.get("eventId", "")
+        event_id = str(sb_event.get("eventId") or sb_event.get("id") or "")
         home = sb_event.get("homeTeamName", "")
         away = sb_event.get("awayTeamName", "")
         league = sb_event.get("tournament", {}).get("name", "League")
@@ -151,13 +199,13 @@ class SportyBetCatalogService:
 
         markets = sb_event.get("markets", [])
         for mkt in markets:
-            mkt_id = str(mkt.get("id", ""))
-            mkt_name = mkt.get("name", "Market")
+            mkt_id = str(mkt.get("id") or mkt.get("marketId") or "")
+            mkt_name = mkt.get("desc") or mkt.get("name") or "Market"
             specifier = mkt.get("specifier")
 
             for outcome in mkt.get("outcomes", []):
-                outcome_id = str(outcome.get("id", ""))
-                outcome_name = outcome.get("name", "")
+                outcome_id = str(outcome.get("id") or outcome.get("outcomeId") or "")
+                outcome_name = outcome.get("desc") or outcome.get("name") or ""
                 odds_val = float(outcome.get("odds", 0.0))
 
                 if odds_val > 1.0:

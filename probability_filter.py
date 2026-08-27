@@ -2,8 +2,8 @@
 Bookmaker-Implied Probability Filter Module
 Calculates Implied Probability strictly from decimal odds:
     Implied Probability = (1.0 / decimal_odds) * 100%
-Filters markets strictly between 85.0% and 95.0% implied probability
-(Decimal odds between ~1.0526 and ~1.1765).
+Filters markets strictly within configured implied probability bounds
+(e.g., 60.0% to 95.0%, decimal odds ~1.05 to ~1.66).
 Explicitly labels all outputs as "Bookmaker-Implied Probability".
 """
 
@@ -16,12 +16,12 @@ from sportybet_catalog import MappedSportyBetSelection
 class FilteredPick:
     selection: MappedSportyBetSelection
     odds: float
-    implied_probability: float  # Percentage (e.g. 90.9%)
+    implied_probability: float  # Percentage (e.g. 80.0%)
     label: str = "Bookmaker-Implied Probability"
 
 
 class ImpliedProbabilityFilter:
-    MIN_IMPLIED_PROB = 85.0
+    MIN_IMPLIED_PROB = 60.0
     MAX_IMPLIED_PROB = 95.0
 
     @staticmethod
@@ -38,7 +38,7 @@ class ImpliedProbabilityFilter:
     def filter_selections(
         cls,
         selections: List[MappedSportyBetSelection],
-        min_prob: float = 85.0,
+        min_prob: float = 60.0,
         max_prob: float = 95.0,
     ) -> List[FilteredPick]:
         """

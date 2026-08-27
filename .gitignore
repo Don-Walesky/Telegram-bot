@@ -1,6 +1,12 @@
 # Virtual environments
-venv/
 .venv/
+venv/
+Activate.ps1
+activate
+activate.bat
+activate.fish
+pyvenv.cfg
+*.exe
 
 # Environment variables / secrets
 .env

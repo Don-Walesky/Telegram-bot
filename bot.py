@@ -6,7 +6,11 @@ and SportyBet Official Booking Code Client.
 
 import logging
 import os
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    def load_dotenv(*args, **kwargs):
+        pass
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
@@ -189,9 +193,9 @@ def run_pipeline(target_date: str = "Today", sport: str = "All") -> BookingSlipR
             extracted = SportyBetCatalogService.extract_selections_from_event(mock_sb_event)
             all_selections.extend(extracted)
 
-    # 3. Probability Filter (85% - 95% Bookmaker-Implied Probability)
+    # 3. Probability Filter (60% - 95% Bookmaker-Implied Probability, odds ~1.05 - 1.66)
     filtered_picks = ImpliedProbabilityFilter.filter_selections(
-        all_selections, min_prob=85.0, max_prob=95.0
+        all_selections, min_prob=60.0, max_prob=95.0
     )
 
     # Limit to top 5 safest picks for a clean multi-leg slip

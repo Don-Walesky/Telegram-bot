@@ -2,6 +2,8 @@
     "python.defaultInterpreterPath": "${workspaceFolder}/venv/Scripts/python.exe",
     "python.pythonPath": "${workspaceFolder}/venv/Scripts/python.exe",
     "python.envFile": "${workspaceFolder}/.env",
+    "python.analysis.reportMissingImports": "none",
+    "python.analysis.reportMissingTypeStubs": "none",
     "python.analysis.extraPaths": [
         "${workspaceFolder}",
         "${workspaceFolder}/venv/Lib/site-packages"

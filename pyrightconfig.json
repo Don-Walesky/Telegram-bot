@@ -9,5 +9,7 @@
         "venv/Lib/site-packages"
     ],
     "venvPath": ".",
-    "venv": "venv"
+    "venv": "venv",
+    "reportMissingImports": false,
+    "reportMissingTypeStubs": false
 }
