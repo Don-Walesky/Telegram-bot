@@ -8,7 +8,8 @@ and builds high-win SportyBet load links.
 import logging
 from dataclasses import dataclass
 from typing import Dict, List, Optional
-from sportybet_booking import SportyBetBookingClient, BookingSlipResponse, MatchedSelection
+from sportybet_booking import SportyBetBookingClient, BookingSlipResponse
+from probability_filter import ImpliedProbabilityFilter, MatchedSelection
 from tipster_learning import TipsterMarketLearner
 from database import DatabaseService
 

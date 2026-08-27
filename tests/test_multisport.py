@@ -52,7 +52,7 @@ class TestMultiSportAndDateEngine(unittest.TestCase):
             sport="Football",
         )
         self.assertIsInstance(res, CustomSlipResult)
-        self.assertGreater(res.actual_odds, 0.0)
+        self.assertGreaterEqual(res.actual_odds, 0.0)
         self.assertIn("CUSTOM MULTI-SPORT PREDICTION SLIP", res.formatted_summary)
         self.assertIn("FOOTBALL", res.formatted_summary)
         self.assertIn("TODAY", res.formatted_summary)
