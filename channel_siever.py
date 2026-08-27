@@ -9,6 +9,7 @@ import logging
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 from sportybet_booking import SportyBetBookingClient, BookingSlipResponse
+from sportybet_catalog import MappedSportyBetSelection
 from probability_filter import FilteredPick
 from tipster_learning import TipsterMarketLearner
 from database import DatabaseService
@@ -50,18 +51,22 @@ class ChannelSlipSiever:
         for p in template_picks:
             sport, league, home, away, market, odds, prob, ev_id, m_id, o_id = p
             if prob >= min_probability:
+                sel = MappedSportyBetSelection(
+                    sport=sport,
+                    league=league,
+                    home_team=home,
+                    away_team=away,
+                    safe_market=market,
+                    odds=odds,
+                    event_id=ev_id,
+                    market_id=m_id,
+                    outcome_id=o_id,
+                )
                 sieved_selections.append(
                     FilteredPick(
-                        sport=sport,
-                        league=league,
-                        home_team=home,
-                        away_team=away,
-                        safe_market=market,
+                        selection=sel,
                         odds=odds,
                         implied_probability=prob,
-                        event_id=ev_id,
-                        market_id=m_id,
-                        outcome_id=o_id,
                     )
                 )
                 if len(sieved_selections) >= game_count:
@@ -71,18 +76,22 @@ class ChannelSlipSiever:
             # Fallback to top available picks if strict threshold returned few matches
             for p in template_picks[:game_count]:
                 sport, league, home, away, market, odds, prob, ev_id, m_id, o_id = p
+                sel = MappedSportyBetSelection(
+                    sport=sport,
+                    league=league,
+                    home_team=home,
+                    away_team=away,
+                    safe_market=market,
+                    odds=odds,
+                    event_id=ev_id,
+                    market_id=m_id,
+                    outcome_id=o_id,
+                )
                 sieved_selections.append(
                     FilteredPick(
-                        sport=sport,
-                        league=league,
-                        home_team=home,
-                        away_team=away,
-                        safe_market=market,
+                        selection=sel,
                         odds=odds,
                         implied_probability=prob,
-                        event_id=ev_id,
-                        market_id=m_id,
-                        outcome_id=o_id,
                     )
                 )
 
