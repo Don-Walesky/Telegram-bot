@@ -7,6 +7,7 @@ and builds high-win SportyBet load links.
 
 import logging
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Dict, List, Optional
 from sportybet_booking import SportyBetBookingClient, BookingSlipResponse
 from sportybet_catalog import MappedSportyBetSelection
@@ -52,15 +53,17 @@ class ChannelSlipSiever:
             sport, league, home, away, market, odds, prob, ev_id, m_id, o_id = p
             if prob >= min_probability:
                 sel = MappedSportyBetSelection(
-                    sport=sport,
-                    league=league,
+                    event_id=ev_id,
                     home_team=home,
                     away_team=away,
-                    safe_market=market,
-                    odds=odds,
-                    event_id=ev_id,
+                    league=league,
+                    sport=sport,
+                    kickoff_time=datetime.now(),
                     market_id=m_id,
+                    market_name=market,
                     outcome_id=o_id,
+                    outcome_name=market,
+                    odds=odds,
                 )
                 sieved_selections.append(
                     FilteredPick(
@@ -77,15 +80,17 @@ class ChannelSlipSiever:
             for p in template_picks[:game_count]:
                 sport, league, home, away, market, odds, prob, ev_id, m_id, o_id = p
                 sel = MappedSportyBetSelection(
-                    sport=sport,
-                    league=league,
+                    event_id=ev_id,
                     home_team=home,
                     away_team=away,
-                    safe_market=market,
-                    odds=odds,
-                    event_id=ev_id,
+                    league=league,
+                    sport=sport,
+                    kickoff_time=datetime.now(),
                     market_id=m_id,
+                    market_name=market,
                     outcome_id=o_id,
+                    outcome_name=market,
+                    odds=odds,
                 )
                 sieved_selections.append(
                     FilteredPick(
