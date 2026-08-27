@@ -118,16 +118,14 @@ class SportyBetCatalogService:
 
         return events
 
-    @staticmethod
-    def _normalize_name(name: str) -> str:
-        return (
-            name.lower()
-            .replace("fc", "")
-            .replace("sc", "")
-            .replace("united", "utd")
-            .replace("saint", "st")
-            .strip()
-        )
+    @classmethod
+    def _normalize_name(cls, name: str) -> str:
+        import re
+        text = name.lower()
+        text = re.sub(r"\b(fc|sc|club|cd|sd|kv)\b", "", text)
+        text = re.sub(r"\bunited\b", "utd", text)
+        text = re.sub(r"\b(saint|st\.)\b", "st", text)
+        return " ".join(text.split())
 
     @classmethod
     def similarity_score(cls, a: str, b: str) -> float:

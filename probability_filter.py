@@ -57,4 +57,5 @@ class ImpliedProbabilityFilter:
                     )
                 )
 
+        valid_picks.sort(key=lambda x: x.implied_probability, reverse=True)
         return valid_picks

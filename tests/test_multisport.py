@@ -58,5 +58,19 @@ class TestMultiSportAndDateEngine(unittest.TestCase):
         self.assertIn("TODAY", res.formatted_summary)
 
 
+    def test_livescore_unstarted_filter(self):
+        from livescore_client import is_unstarted_match
+        self.assertTrue(is_unstarted_match("NS"))
+        self.assertTrue(is_unstarted_match("Sched"))
+        self.assertTrue(is_unstarted_match("20:00"))
+        self.assertTrue(is_unstarted_match("19:45"))
+
+        self.assertFalse(is_unstarted_match("FT"))
+        self.assertFalse(is_unstarted_match("HT"))
+        self.assertFalse(is_unstarted_match("63'"))
+        self.assertFalse(is_unstarted_match("CANC"))
+        self.assertFalse(is_unstarted_match("ABD"))
+
+
 if __name__ == "__main__":
     unittest.main()
