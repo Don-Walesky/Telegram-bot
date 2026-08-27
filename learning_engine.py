@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 from sportybet_catalog import SportyBetCatalogService
+from config import config
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class StrategyLearningEngine:
         and updates the dynamic market store. Designed to run hourly in background.
         """
         if sports is None:
-            sports = ["Football", "Basketball", "Tennis", "Ice Hockey"]
+            sports = config.domain.supported_sports
 
         new_markets_count = 0
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

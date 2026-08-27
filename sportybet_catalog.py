@@ -13,6 +13,7 @@ from typing import Dict, List, Optional
 import httpx
 
 from livescore_client import DiscoveredFixture
+from config import config
 
 logger = logging.getLogger(__name__)
 
@@ -47,8 +48,8 @@ class MappedSportyBetSelection:
 
 
 class SportyBetCatalogService:
-    POPULAR_EVENTS_URL = "https://www.sportybet.com/api/ng/factsCenter/popularEvents"
-    QUERY_EVENTS_URL = "https://www.sportybet.com/api/ng/factsCenter/query"
+    POPULAR_EVENTS_URL = config.services.sportybet_popular_url
+    QUERY_EVENTS_URL = config.services.sportybet_query_url
 
     @classmethod
     def fetch_sportybet_catalog(cls, sport: str = "Football") -> List[Dict]:
@@ -56,14 +57,7 @@ class SportyBetCatalogService:
         Queries SportyBet live catalog for scheduled upcoming events.
         Handles 'All' sports by iterating through Football, Basketball, Tennis, and Ice Hockey.
         """
-        sport_id_map = {
-            "football": "sr:sport:1",
-            "soccer": "sr:sport:1",
-            "basketball": "sr:sport:2",
-            "tennis": "sr:sport:5",
-            "ice hockey": "sr:sport:4",
-            "hockey": "sr:sport:4",
-        }
+        sport_id_map = config.domain.sport_id_map
 
         if sport.lower() == "all":
             target_sports = ["football", "basketball", "tennis", "ice hockey"]
@@ -78,7 +72,7 @@ class SportyBetCatalogService:
 
             for url in endpoints:
                 try:
-                    with httpx.Client(timeout=8.0) as client:
+                    with httpx.Client(timeout=config.services.sportybet_timeout) as client:
                         params = {
                             "sportId": sport_id,
                             "_t": str(int(datetime.now().timestamp() * 1000)),

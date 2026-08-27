@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from aggregator import PredictionAggregator, RawPrediction
 from sportybet import SportyBetService
+from config import config
 
 logger = logging.getLogger(__name__)
 

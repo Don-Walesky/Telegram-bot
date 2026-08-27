@@ -7,12 +7,12 @@ import os
 import shutil
 import logging
 from datetime import datetime
+from config import config
 
 logger = logging.getLogger(__name__)
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH = os.path.join(BASE_DIR, "db", "bot_history.db")
-BACKUP_DIR = os.path.join(BASE_DIR, "db", "backups")
+DB_PATH = config.app.db_path
+BACKUP_DIR = os.path.join(config.app.db_dir, "backups")
 
 
 def backup_database() -> str:

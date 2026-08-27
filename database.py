@@ -8,11 +8,12 @@ import sqlite3
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional
+from config import config
 
 logger = logging.getLogger(__name__)
 
-DB_DIR = os.path.join(os.path.dirname(__file__), "db")
-DB_PATH = os.path.join(DB_DIR, "bot_history.db")
+DB_DIR = config.app.db_dir
+DB_PATH = config.app.db_path
 
 
 class DatabaseService:

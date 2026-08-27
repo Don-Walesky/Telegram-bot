@@ -12,6 +12,7 @@ from typing import List, Optional
 from analyzer import ConsensusPrediction, PredictionAnalyzer
 from calculator import BetCalculator
 from sportybet import SportyBetService
+from config import config
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,7 @@ class CustomSlipResult:
     selections: List[ConsensusPrediction]
     booking_code: str
     formatted_summary: str
-    stake: float = 1000.0
+    stake: float = config.betting.default_stake
     sportybet_bonus_pct: float = 0.0
     sportybet_bonus_amount: float = 0.0
     total_payout: float = 0.0
@@ -34,12 +35,12 @@ class CustomSlipResult:
 class CustomSlipBuilder:
     @staticmethod
     def generate_custom_slip(
-        target_odds: float = 2.00,
+        target_odds: float = config.betting.min_target_odds,
         game_count: int = 3,
         min_probability: float = 75.0,
         match_date: str = "Today",
         sport: str = "All",
-        stake: float = 1000.0,
+        stake: float = config.betting.default_stake,
     ) -> CustomSlipResult:
         """
         Builds a custom bet slip up to 25 games containing ONLY upcoming LiveScore.com matches.

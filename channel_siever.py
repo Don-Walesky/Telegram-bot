@@ -14,6 +14,7 @@ from sportybet_catalog import MappedSportyBetSelection
 from probability_filter import FilteredPick
 from tipster_learning import TipsterMarketLearner
 from database import DatabaseService
+from config import config
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +23,8 @@ class ChannelSlipSiever:
     @classmethod
     def scan_and_sieve_channel_slips(
         cls,
-        min_probability: float = 85.0,
-        game_count: int = 5,
+        min_probability: float = config.betting.default_min_probability,
+        game_count: int = config.betting.default_scan_legs,
     ) -> BookingSlipResponse:
         """
         Scans watched channel posts/codes, sieves out high-risk matches according to target probability,

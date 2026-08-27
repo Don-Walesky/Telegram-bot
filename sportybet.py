@@ -7,6 +7,7 @@ import re
 import random
 from dataclasses import dataclass
 from typing import Dict, List, Optional
+from config import config
 
 
 @dataclass
@@ -22,21 +23,14 @@ class SportyBetService:
     CODE_REGEX = re.compile(r"\b(?:BC|CST|EDIT)[-_]?[A-Z0-9]{4,10}\b|\b(?=[A-Z0-9]*\d)[A-Z0-9]{5,10}\b", re.IGNORECASE)
 
     @staticmethod
-    def get_booking_url(code: str, country_code: str = "ng") -> str:
+    def get_booking_url(code: str, country_code: str = config.betting.default_country_code) -> str:
         """
         Generate a direct shareable link for a SportyBet booking code.
         Supported country codes: ng (Nigeria), gh (Ghana), ke (Kenya), ug (Uganda), tz (Tanzania), zm (Zambia).
         """
         code_clean = code.strip().upper()
-        domain_map = {
-            "ng": "https://www.sportybet.com/ng/",
-            "gh": "https://www.sportybet.com/gh/",
-            "ke": "https://www.sportybet.com/ke/",
-            "ug": "https://www.sportybet.com/ug/",
-            "tz": "https://www.sportybet.com/tz/",
-            "zm": "https://www.sportybet.com/zm/",
-        }
-        base_url = domain_map.get(country_code.lower(), domain_map["ng"])
+        domain_map = config.domain.sportybet_domain_map
+        base_url = domain_map.get(country_code.lower(), domain_map[config.betting.default_country_code])
         return f"{base_url}?shareCode={code_clean}"
 
     @classmethod

@@ -10,6 +10,7 @@ Explicitly labels all outputs as "Bookmaker-Implied Probability".
 from dataclasses import dataclass
 from typing import List
 from sportybet_catalog import MappedSportyBetSelection
+from config import config
 
 
 @dataclass
@@ -21,8 +22,8 @@ class FilteredPick:
 
 
 class ImpliedProbabilityFilter:
-    MIN_IMPLIED_PROB = 60.0
-    MAX_IMPLIED_PROB = 95.0
+    MIN_IMPLIED_PROB = config.betting.min_implied_probability
+    MAX_IMPLIED_PROB = config.betting.max_implied_probability
 
     @staticmethod
     def calculate_implied_probability(odds: float) -> float:
@@ -38,8 +39,8 @@ class ImpliedProbabilityFilter:
     def filter_selections(
         cls,
         selections: List[MappedSportyBetSelection],
-        min_prob: float = 60.0,
-        max_prob: float = 95.0,
+        min_prob: float = config.betting.min_implied_probability,
+        max_prob: float = config.betting.max_implied_probability,
     ) -> List[FilteredPick]:
         """
         Filters picks whose Bookmaker-Implied Probability is strictly within [min_prob, max_prob].

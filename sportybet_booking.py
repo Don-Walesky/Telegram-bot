@@ -14,6 +14,7 @@ from typing import Dict, List, Optional
 import httpx
 
 from probability_filter import FilteredPick
+from config import config
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ class BookingSlipResponse:
 
 
 class SportyBetBookingClient:
-    SHARE_API_URL = "https://www.sportybet.com/api/ng/orders/share"
+    SHARE_API_URL = config.services.sportybet_share_url
 
     @classmethod
     def revalidate_pick(cls, pick: FilteredPick) -> Optional[FilteredPick]:
@@ -116,7 +117,7 @@ class SportyBetBookingClient:
 
         # 3. Attempt official SportyBet API call
         try:
-            with httpx.Client(timeout=10.0) as client:
+            with httpx.Client(timeout=config.services.booking_api_timeout) as client:
                 response = client.post(cls.SHARE_API_URL, json=request_body, headers=HEADERS)
                 if response.status_code == 200:
                     data = response.json()

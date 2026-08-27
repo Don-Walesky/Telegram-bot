@@ -33,15 +33,15 @@ from tipster_learning import TipsterMarketLearner
 from database import DatabaseService
 from learning_engine import StrategyLearningEngine
 from builder import CustomSlipBuilder
+from config import config
 
-# Load environment variables
-load_dotenv()
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+# Load environment variables & token
+TOKEN = config.env.telegram_bot_token
 
 # Configure logging
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
+    level=getattr(logging, config.app.log_level, logging.INFO),
 )
 logger = logging.getLogger(__name__)
 
@@ -809,7 +809,7 @@ async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Displays admin monitoring stats for bot owner."""
-    admin_id_str = os.getenv("ADMIN_USER_ID")
+    admin_id_str = config.env.admin_user_id
     user_id = update.effective_user.id if update.effective_user else 0
 
     if admin_id_str and str(user_id) != admin_id_str:
@@ -921,7 +921,7 @@ def main() -> None:
     if app.job_queue:
         app.job_queue.run_repeating(
             hourly_market_learning_job,
-            interval=3600,
+            interval=config.app.hourly_market_scan_interval,
             first=10,
             name="hourly_sportybet_market_learning",
         )

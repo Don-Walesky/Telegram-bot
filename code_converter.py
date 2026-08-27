@@ -9,9 +9,7 @@ import os
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 import httpx
-from dotenv import load_dotenv
-
-load_dotenv()
+from config import config
 
 logger = logging.getLogger(__name__)
 
@@ -30,17 +28,17 @@ class ConversionResult:
 
 
 class BetCodeConverterService:
-    RAPIDAPI_HOST = "convert-bet-codes-api1.p.rapidapi.com"
-    RAPIDAPI_URL = f"https://{RAPIDAPI_HOST}/v1/convert"
-    BETLOY_API_URL = "https://api.betloy.com/v1/convert"
+    RAPIDAPI_HOST = config.services.rapidapi_host
+    RAPIDAPI_URL = config.services.rapidapi_convert_url
+    BETLOY_API_URL = config.services.betloy_convert_url
 
     @classmethod
     def get_rapidapi_key(cls) -> Optional[str]:
-        return os.getenv("RAPIDAPI_KEY") or os.getenv("CONVERTBETCODES_API_KEY")
+        return config.env.rapidapi_key
 
     @classmethod
     def get_betloy_key(cls) -> Optional[str]:
-        return os.getenv("BETLOY_API_KEY")
+        return config.env.betloy_api_key
 
     @classmethod
     def convert_code_to_sportybet(
@@ -110,7 +108,7 @@ class BetCodeConverterService:
         }
 
         try:
-            with httpx.Client(timeout=10.0) as client:
+            with httpx.Client(timeout=config.services.conversion_api_timeout) as client:
                 response = client.post(cls.RAPIDAPI_URL, json=payload, headers=headers)
                 if response.status_code == 200:
                     data = response.json()
@@ -164,7 +162,7 @@ class BetCodeConverterService:
         }
 
         try:
-            with httpx.Client(timeout=10.0) as client:
+            with httpx.Client(timeout=config.services.conversion_api_timeout) as client:
                 response = client.post(cls.BETLOY_API_URL, json=payload, headers=headers)
                 if response.status_code == 200:
                     data = response.json()

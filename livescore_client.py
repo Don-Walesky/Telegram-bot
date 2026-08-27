@@ -12,6 +12,8 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 import httpx
 
+from config import config
+
 logger = logging.getLogger(__name__)
 
 HEADERS = {
@@ -55,14 +57,7 @@ class DiscoveredFixture:
 
 
 class LiveScoreClient:
-    SPORT_MAP = {
-        "football": "soccer",
-        "soccer": "soccer",
-        "basketball": "basketball",
-        "tennis": "tennis",
-        "ice hockey": "hockey",
-        "hockey": "hockey",
-    }
+    SPORT_MAP = config.domain.livescore_sport_map
 
     @classmethod
     def fetch_unstarted_fixtures(
@@ -102,15 +97,14 @@ class LiveScoreClient:
             )
 
             candidate_urls = [
-                f"https://prod-cdn-mev-api.livescore.com/v1/api/app/date/{ls_sport}/{date_param}/1?locale=en",
-                f"https://prod-public-api.livescore.com/v1/api/react/date/{ls_sport}/{date_param}/0.00?MD=1",
-                f"https://prod-public-api.livescore.com/v1/api/app/date/{ls_sport}/{date_param}/0",
+                tmpl.format(sport=ls_sport, date=date_param)
+                for tmpl in config.services.livescore_candidate_urls
             ]
 
             fetched_stages = []
             for url in candidate_urls:
                 try:
-                    with httpx.Client(timeout=8.0) as client:
+                    with httpx.Client(timeout=config.services.livescore_timeout) as client:
                         resp = client.get(url, headers=HEADERS)
                         logger.info(f"LiveScore fetch {ls_sport} [{url}]: HTTP {resp.status_code}")
                         if resp.status_code == 200:
