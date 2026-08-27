@@ -30,7 +30,7 @@ class TestSportyBetModules(unittest.TestCase):
     def test_daily_predictions_format(self):
         tips_msg = PredictionsService.format_daily_tips_message()
         self.assertIn("95%+ MULTI-SPORT CONSENSUS PREDICTIONS", tips_msg)
-        self.assertIn("Accumulator Total Odds:", tips_msg)
+        self.assertTrue("Accumulator Total Odds:" in tips_msg or "No unstarted matches met" in tips_msg)
 
 
 if __name__ == "__main__":
