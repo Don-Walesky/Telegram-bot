@@ -21,7 +21,7 @@ class TestConsensusAnalyzer(unittest.TestCase):
 
     def test_report_formatting(self):
         report = PredictionAnalyzer.format_consensus_report()
-        self.assertIn("95%+ MULTI-SPORT CONSENSUS PREDICTIONS", report)
+        self.assertIn("HIGH-PROBABILITY MULTI-SPORT PREDICTIONS", report)
 
 
 if __name__ == "__main__":
