@@ -72,7 +72,16 @@ class LiveScoreClient:
         Fetch unstarted fixtures for Today or Tomorrow via multi-candidate LiveScore endpoints.
         """
         now = datetime.now()
-        target_dt = now + timedelta(days=1) if target_date_str.lower() == "tomorrow" else now
+        if target_date_str.lower() == "tomorrow":
+            target_dt = now + timedelta(days=1)
+        elif target_date_str.lower() == "today":
+            target_dt = now
+        else:
+            try:
+                target_dt = datetime.strptime(target_date_str, "%Y-%m-%d")
+            except ValueError:
+                target_dt = now
+
         date_param = target_dt.strftime("%Y%m%d")
 
         if sport_filter.lower() == "all":
