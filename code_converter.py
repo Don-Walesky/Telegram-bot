@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional
 import httpx
 from config import config
+from http_client import HTTPClientProvider
 
 logger = logging.getLogger(__name__)
 
@@ -108,24 +109,24 @@ class BetCodeConverterService:
         }
 
         try:
-            with httpx.Client(timeout=config.services.conversion_api_timeout) as client:
-                response = client.post(cls.RAPIDAPI_URL, json=payload, headers=headers)
-                if response.status_code == 200:
-                    data = response.json()
-                    converted_code = data.get("converted_code") or data.get("destination_code") or data.get("code")
-                    if converted_code:
-                        share_url = f"https://www.sportybet.com/{country_code}/?shareCode={converted_code}"
-                        return ConversionResult(
-                            success=True,
-                            source_code=source_code,
-                            source_bookmaker=source_bookmaker.capitalize(),
-                            destination_bookmaker="SportyBet",
-                            sportybet_code=converted_code,
-                            share_url=share_url,
-                            matches_count=data.get("matches_count", 0),
-                            message="Successfully converted via RapidAPI ConvertBetCodes",
-                            provider_used="RapidAPI ConvertBetCodes",
-                        )
+            client = HTTPClientProvider.get_client(timeout=config.services.conversion_api_timeout)
+            response = client.post(cls.RAPIDAPI_URL, json=payload, headers=headers)
+            if response.status_code == 200:
+                data = response.json()
+                converted_code = data.get("converted_code") or data.get("destination_code") or data.get("code")
+                if converted_code:
+                    share_url = f"https://www.sportybet.com/{country_code}/?shareCode={converted_code}"
+                    return ConversionResult(
+                        success=True,
+                        source_code=source_code,
+                        source_bookmaker=source_bookmaker.capitalize(),
+                        destination_bookmaker="SportyBet",
+                        sportybet_code=converted_code,
+                        share_url=share_url,
+                        matches_count=data.get("matches_count", 0),
+                        message="Successfully converted via RapidAPI ConvertBetCodes",
+                        provider_used="RapidAPI ConvertBetCodes",
+                    )
         except Exception as e:
             logger.warning(f"RapidAPI ConvertBetCodes request failed: {e}")
 
@@ -162,24 +163,24 @@ class BetCodeConverterService:
         }
 
         try:
-            with httpx.Client(timeout=config.services.conversion_api_timeout) as client:
-                response = client.post(cls.BETLOY_API_URL, json=payload, headers=headers)
-                if response.status_code == 200:
-                    data = response.json()
-                    converted_code = data.get("target_code") or data.get("code")
-                    if converted_code:
-                        share_url = f"https://www.sportybet.com/{country_code}/?shareCode={converted_code}"
-                        return ConversionResult(
-                            success=True,
-                            source_code=source_code,
-                            source_bookmaker=source_bookmaker.capitalize(),
-                            destination_bookmaker="SportyBet",
-                            sportybet_code=converted_code,
-                            share_url=share_url,
-                            matches_count=data.get("games_count", 0),
-                            message="Successfully converted via Betloy API",
-                            provider_used="Betloy API",
-                        )
+            client = HTTPClientProvider.get_client(timeout=config.services.conversion_api_timeout)
+            response = client.post(cls.BETLOY_API_URL, json=payload, headers=headers)
+            if response.status_code == 200:
+                data = response.json()
+                converted_code = data.get("target_code") or data.get("code")
+                if converted_code:
+                    share_url = f"https://www.sportybet.com/{country_code}/?shareCode={converted_code}"
+                    return ConversionResult(
+                        success=True,
+                        source_code=source_code,
+                        source_bookmaker=source_bookmaker.capitalize(),
+                        destination_bookmaker="SportyBet",
+                        sportybet_code=converted_code,
+                        share_url=share_url,
+                        matches_count=data.get("games_count", 0),
+                        message="Successfully converted via Betloy API",
+                        provider_used="Betloy API",
+                    )
         except Exception as e:
             logger.warning(f"Betloy API request failed: {e}")
 

@@ -13,6 +13,7 @@ from typing import List, Optional
 import httpx
 
 from config import config
+from http_client import HTTPClientProvider
 
 logger = logging.getLogger(__name__)
 
@@ -102,16 +103,16 @@ class LiveScoreClient:
             ]
 
             fetched_stages = []
+            client = HTTPClientProvider.get_client(timeout=config.services.livescore_timeout)
             for url in candidate_urls:
                 try:
-                    with httpx.Client(timeout=config.services.livescore_timeout) as client:
-                        resp = client.get(url, headers=HEADERS)
-                        logger.info(f"LiveScore fetch {ls_sport} [{url}]: HTTP {resp.status_code}")
-                        if resp.status_code == 200:
-                            data = resp.json()
-                            fetched_stages = data.get("Stages", [])
-                            if fetched_stages:
-                                break
+                    resp = client.get(url, headers=HEADERS)
+                    logger.info(f"LiveScore fetch {ls_sport} [{url}]: HTTP {resp.status_code}")
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        fetched_stages = data.get("Stages", [])
+                        if fetched_stages:
+                            break
                 except Exception as e:
                     logger.warning(f"LiveScore candidate URL error [{url}]: {e}")
 

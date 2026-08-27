@@ -36,8 +36,8 @@ class TestBetCodeConverter(unittest.TestCase):
         self.assertEqual(res.source_code, "1X223344")
         self.assertIn("SportyBet", res.destination_bookmaker)
 
-    @patch("code_converter.httpx.Client")
-    def test_rapidapi_mock_conversion(self, mock_client_cls):
+    @patch("code_converter.HTTPClientProvider.get_client")
+    def test_rapidapi_mock_conversion(self, mock_get_client):
         mock_client = MagicMock()
         mock_response = MagicMock()
         mock_response.status_code = 200
@@ -46,7 +46,7 @@ class TestBetCodeConverter(unittest.TestCase):
             "matches_count": 5,
         }
         mock_client.post.return_value = mock_response
-        mock_client_cls.return_value.__enter__.return_value = mock_client
+        mock_get_client.return_value = mock_client
 
         with patch.object(BetCodeConverterService, "get_rapidapi_key", return_value="dummy_key"):
             res = BetCodeConverterService.convert_code_to_sportybet("BET9JA88", "bet9ja")

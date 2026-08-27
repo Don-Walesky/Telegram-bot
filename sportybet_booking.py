@@ -15,6 +15,7 @@ import httpx
 
 from probability_filter import FilteredPick
 from config import config
+from http_client import HTTPClientProvider
 
 logger = logging.getLogger(__name__)
 
@@ -117,23 +118,23 @@ class SportyBetBookingClient:
 
         # 3. Attempt official SportyBet API call
         try:
-            with httpx.Client(timeout=config.services.booking_api_timeout) as client:
-                response = client.post(cls.SHARE_API_URL, json=request_body, headers=HEADERS)
-                if response.status_code == 200:
-                    data = response.json()
-                    if data.get("bizCode") == 10000 and data.get("data"):
-                        real_booking_code = data["data"].get("shareCode")
-                        provider_msg = "Official SportyBet Share API"
-                    else:
-                        logger.error(
-                            f"SportyBet share API rejected payload: {data}. Request Payload: {request_body}"
-                        )
-                        provider_msg = f"API Rejected ({data.get('message', 'Auth/Session Required')})"
+            client = HTTPClientProvider.get_client(timeout=config.services.booking_api_timeout)
+            response = client.post(cls.SHARE_API_URL, json=request_body, headers=HEADERS)
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("bizCode") == 10000 and data.get("data"):
+                    real_booking_code = data["data"].get("shareCode")
+                    provider_msg = "Official SportyBet Share API"
                 else:
                     logger.error(
-                        f"SportyBet HTTP error {response.status_code}. Request Payload: {request_body}"
+                        f"SportyBet share API rejected payload: {data}. Request Payload: {request_body}"
                     )
-                    provider_msg = f"HTTP {response.status_code}"
+                    provider_msg = f"API Rejected ({data.get('message', 'Auth/Session Required')})"
+            else:
+                logger.error(
+                    f"SportyBet HTTP error {response.status_code}. Request Payload: {request_body}"
+                )
+                provider_msg = f"HTTP Error {response.status_code}"
         except Exception as e:
             logger.error(f"SportyBet share API connection failed: {e}. Payload: {request_body}")
             provider_msg = f"Connection error: {e}"

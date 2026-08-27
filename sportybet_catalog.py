@@ -14,6 +14,7 @@ import httpx
 
 from livescore_client import DiscoveredFixture
 from config import config
+from http_client import HTTPClientProvider
 
 logger = logging.getLogger(__name__)
 
@@ -69,24 +70,24 @@ class SportyBetCatalogService:
         for target in target_sports:
             sport_id = sport_id_map.get(target, "sr:sport:1")
             endpoints = [cls.POPULAR_EVENTS_URL, cls.QUERY_EVENTS_URL]
+            client = HTTPClientProvider.get_client(timeout=config.services.sportybet_timeout)
 
             for url in endpoints:
                 try:
-                    with httpx.Client(timeout=config.services.sportybet_timeout) as client:
-                        params = {
-                            "sportId": sport_id,
-                            "_t": str(int(datetime.now().timestamp() * 1000)),
-                        }
-                        resp = client.get(url, params=params, headers=HEADERS)
-                        logger.info(f"SportyBet catalog query [{target}] [{url}]: HTTP {resp.status_code}")
-                        if resp.status_code == 200:
-                            data = resp.json()
-                            if data.get("bizCode") == 10000 and data.get("data"):
-                                raw_items = data.get("data", [])
-                                flattened = cls._flatten_sportybet_events(raw_items)
-                                if flattened:
-                                    all_events.extend(flattened)
-                                    break
+                    params = {
+                        "sportId": sport_id,
+                        "_t": str(int(datetime.now().timestamp() * 1000)),
+                    }
+                    resp = client.get(url, params=params, headers=HEADERS)
+                    logger.info(f"SportyBet catalog query [{target}] [{url}]: HTTP {resp.status_code}")
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        if data.get("bizCode") == 10000 and data.get("data"):
+                            raw_items = data.get("data", [])
+                            flattened = cls._flatten_sportybet_events(raw_items)
+                            if flattened:
+                                all_events.extend(flattened)
+                                break
                 except Exception as e:
                     logger.warning(f"SportyBet catalog fetch error for {target} [{url}]: {e}")
 
