@@ -36,7 +36,7 @@ class CustomSlipBuilder:
     def generate_custom_slip(
         target_odds: float = 2.00,
         game_count: int = 3,
-        min_probability: float = 85.0,
+        min_probability: float = 75.0,
         match_date: str = "Today",
         sport: str = "All",
         stake: float = 1000.0,
@@ -56,9 +56,9 @@ class CustomSlipBuilder:
         unstarted_candidates = [c for c in candidates if (not c.kickoff_time or c.kickoff_time > now)]
 
         if not unstarted_candidates:
-            # Fallback if no 85%+ unstarted matches match: pull all upcoming
+            # Fallback if no matches met threshold: pull all upcoming unstarted
             unstarted_candidates = PredictionAnalyzer.analyze_consensus_predictions(
-                min_probability=80.0,
+                min_probability=60.0,
                 match_date=match_date,
                 sport=sport,
             )

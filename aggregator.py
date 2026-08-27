@@ -54,6 +54,10 @@ class PredictionAggregator:
                 "Home Win" if fix.sport in ["Basketball", "Tennis", "Ice Hockey"] else "1X / X2"
             )
 
+            from analyzer import PredictionAnalyzer
+            safe_mkt, odds = PredictionAnalyzer.convert_to_safe_market(pred_option, fix.sport)
+            implied_prob = min(92.0, max(75.0, round((1.0 / odds) * 100.0, 1)))
+
             raw_list.append(
                 RawPrediction(
                     source="LiveScore Ingestion",
@@ -61,7 +65,7 @@ class PredictionAggregator:
                     away_team=fix.away_team,
                     league=fix.league,
                     raw_prediction=pred_option,
-                    win_probability=75.0,
+                    win_probability=implied_prob,
                     sport=fix.sport,
                     match_date=match_date,
                     kickoff_time=fix.kickoff_time,

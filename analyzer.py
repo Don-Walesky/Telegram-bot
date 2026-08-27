@@ -105,7 +105,7 @@ class PredictionAnalyzer:
 
     @staticmethod
     def analyze_consensus_predictions(
-        min_probability: float = 85.0,
+        min_probability: float = 75.0,
         match_date: str = "Today",
         sport: str = "All",
     ) -> List[ConsensusPrediction]:
@@ -161,7 +161,7 @@ class PredictionAnalyzer:
 
     @staticmethod
     def format_consensus_report(
-        min_probability: float = 95.0,
+        min_probability: float = 75.0,
         match_date: str = "Today",
         sport: str = "All",
         booking_code: str = "BC95SAFE",
@@ -176,11 +176,10 @@ class PredictionAnalyzer:
         sport_icon = "⚽" if sport == "Football" else "🏀" if sport == "Basketball" else "🎾" if sport == "Tennis" else "🏒" if sport == "Ice Hockey" else "🏆"
 
         lines = [
-            f"🛡️ *95%+ MULTI-SPORT CONSENSUS PREDICTIONS*",
+            "🛡️ *HIGH-PROBABILITY MULTI-SPORT PREDICTIONS*",
             f"📅 *Date:* `{match_date.upper()}` | *Sport:* `{sport.upper()}` {sport_icon}",
-            "📊 *Analyzed from Forebet, PredictZ, Dimers, FreeSuperTips & OLBG*",
-            "✔ *EXCLUSIVE Source:* LiveScore.com (All Sports)",
-            "⏰ *Strict Filter:* Only unstarted & upcoming matches included",
+            "📊 *Source:* LiveScore Real Fixture Discovery & Implied Probability Analysis",
+            "⏰ *Strict Filter:* Only unstarted & upcoming future matches included",
             "━━━━━━━━━━━━━━━━━━━━",
         ]
 

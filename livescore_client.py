@@ -136,7 +136,8 @@ class LiveScoreClient:
                         if not kickoff_dt:
                             kickoff_dt = target_dt + timedelta(hours=2)
 
-                        if h_team and a_team:
+                        now = datetime.now()
+                        if h_team and a_team and kickoff_dt > now:
                             fixtures.append(
                                 DiscoveredFixture(
                                     sport=disp_sport,
