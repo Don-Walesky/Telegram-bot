@@ -13,6 +13,7 @@
         "${workspaceFolder}/venv/Lib/site-packages"
     ],
     "cSpell.words": [
+        "Betloy",
         "bilns",
         "Defence",
         "dotenv",
