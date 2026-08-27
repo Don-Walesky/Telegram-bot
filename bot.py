@@ -283,7 +283,7 @@ async def scan_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         parse_mode="Markdown",
     )
 
-    slip_res = run_pipeline(target_date=target_date, sport=sport)
+    slip_res = await asyncio.to_thread(run_pipeline, target_date, sport)
     context.user_data["current_slip"] = slip_res
 
     await update.message.reply_text(
@@ -598,12 +598,13 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             parse_mode="Markdown",
         )
 
-        res = CustomSlipBuilder.generate_custom_slip(
-            target_odds=target_odds,
-            game_count=game_count,
-            min_probability=sel_prob,
-            match_date=target_date,
-            sport=target_sport,
+        res = await asyncio.to_thread(
+            CustomSlipBuilder.generate_custom_slip,
+            target_odds,
+            game_count,
+            sel_prob,
+            target_date,
+            target_sport,
         )
         context.user_data["current_slip"] = res
 
