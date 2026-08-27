@@ -193,17 +193,24 @@ class PredictionAnalyzer:
         lines.append(f"🔗 [Click to Load Slip on SportyBet]({url})")
         lines.append("━━━━━━━━━━━━━━━━━━━━")
 
+        def clean_md(text: str) -> str:
+            return text.replace("_", "\\_").replace("*", "\\*").replace("`", "\\`")
+
         total_odds = 1.0
         for idx, pick in enumerate(top_picks, 1):
             total_odds *= pick.odds
             sources_str = ", ".join(pick.agreed_sources[:3])
             time_str = pick.kickoff_time.strftime("%H:%M WAT") if pick.kickoff_time else "Upcoming"
 
+            clean_h = clean_md(pick.home_team)
+            clean_a = clean_md(pick.away_team)
+            clean_l = clean_md(pick.league)
+
             lines.append(
-                f"{idx}. *{pick.home_team} vs {pick.away_team}* (_{pick.league}_)\n"
+                f"{idx}. *{clean_h} vs {clean_a}* (_{clean_l}_)\n"
                 f"   ⏰ Kickoff: `{time_str}`\n"
                 f"   🎯 Safe Pick: *{pick.safe_market}* @ `{pick.odds:.2f}`\n"
-                f"   🔥 Consensus Probability: *{pick.consensus_probability}%* ({len(pick.agreed_sources)} Sources: {sources_str})\n"
+                f"   🔥 Implied Probability: *{pick.consensus_probability}%* (Source: {sources_str})\n"
             )
 
         lines.append("━━━━━━━━━━━━━━━━━━━━")

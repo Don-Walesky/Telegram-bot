@@ -66,9 +66,9 @@ class CustomSlipBuilder:
         # Select up to requested game_count from unstarted candidates
         selected = unstarted_candidates[:game_count]
 
-        # Generate realistic SportyBet reference code
-        booking_code = SportyBetService.generate_booking_code()
-        url = SportyBetService.get_booking_url(booking_code)
+        # Select up to requested game_count from unstarted candidates
+        selected = unstarted_candidates[:game_count]
+
         sportybet_direct_url = "https://www.sportybet.com/ng/m/sports/football/"
 
         odds_list = [pick.odds for pick in selected]
@@ -78,26 +78,32 @@ class CustomSlipBuilder:
 
         sport_icon = "⚽" if sport == "Football" else "🏀" if sport == "Basketball" else "🎾" if sport == "Tennis" else "🏒" if sport == "Ice Hockey" else "🏆"
 
+        def clean_md(text: str) -> str:
+            return text.replace("_", "\\_").replace("*", "\\*").replace("`", "\\`")
+
         lines = [
             "⚙️ *CUSTOM MULTI-SPORT PREDICTION SLIP*",
             "━━━━━━━━━━━━━━━━━━━━",
             f"📅 *Date:* `{match_date.upper()}` | *Sport:* `{sport.upper()}` {sport_icon}",
-            "✔ *EXCLUSIVE Source:* LiveScore.com (100% Real Matches)",
+            "✔ *Source:* LiveScore Real Fixture Discovery",
             "⏰ *Match Status:* `UNSTARTED / UPCOMING GAMES ONLY` 🟢",
-            f"📌 *Slip Ref Code:* `{booking_code}`",
             f"🎯 *Target Odds:* `{target_odds:.2f}x` | *Actual Odds:* `{actual_odds:.2f}x`",
             f"⚽ *Matches Count:* {len(selected)} Games",
             f"🛡️ *Minimum Probability:* *{min_probability:.0f}%*",
             "━━━━━━━━━━━━━━━━━━━━",
-            "*MATCH SELECTIONS & SPORTYBET MARKETS:*",
+            "*MATCH SELECTIONS & SAFE MARKETS:*",
         ]
 
         for idx, pick in enumerate(selected, 1):
             sport_symbol = "⚽" if pick.sport == "Football" else "🏀" if pick.sport == "Basketball" else "🎾" if pick.sport == "Tennis" else "🏒" if pick.sport == "Ice Hockey" else "🏆"
             time_str = pick.kickoff_time.strftime("%H:%M WAT") if pick.kickoff_time else "Upcoming"
 
+            clean_h = clean_md(pick.home_team)
+            clean_a = clean_md(pick.away_team)
+            clean_l = clean_md(pick.league)
+
             lines.append(
-                f"{idx}. {sport_symbol} *{pick.home_team} vs {pick.away_team}* (_{pick.league}_)\n"
+                f"{idx}. {sport_symbol} *{clean_h} vs {clean_a}* (_{clean_l}_)\n"
                 f"   ⏰ Kickoff: `{time_str}` 🟢 (Unstarted)\n"
                 f"   🎯 Market Pick: *{pick.safe_market}* @ `{pick.odds:.2f}`\n"
                 f"   🔥 Win Probability: *{pick.consensus_probability}%*\n"
@@ -108,10 +114,9 @@ class CustomSlipBuilder:
         lines.append(f"🎁 *SportyBet Bonus:* +{calc_res['bonus_pct']}% (+₦{calc_res['bonus_amount']:,.2f})")
         lines.append(f"🏆 *Total Estimated Payout:* *₦{calc_res['total_payout']:,.2f}*")
         lines.append("━━━━━━━━━━━━━━━━━━━━")
-        lines.append(f"📌 *Slip Reference Code:* `{booking_code}`")
-        lines.append(f"🚀 [Open SportyBet & Place Slip Picks]({sportybet_direct_url})")
+        lines.append(f"🚀 [Open SportyBet & Select Picks Directly]({sportybet_direct_url})")
         lines.append(f"🔄 *Convert external codes:* Send `/convert <code_or_url>` to convert Bet9ja/1xBet slips directly into a single SportyBet booking code via RapidAPI / Betloy!")
-        lines.append(f"💡 *How to bet:* Open SportyBet using the link above, search these verified LiveScore matches, and select the market picks listed!")
+        lines.append(f"💡 *How to bet:* Open SportyBet using the link above, search these verified LiveScore matches, and select the safe market picks listed!")
 
         return CustomSlipResult(
             target_odds=target_odds,
@@ -119,7 +124,7 @@ class CustomSlipBuilder:
             game_count=len(selected),
             min_probability=min_probability,
             selections=selected,
-            booking_code=booking_code,
+            booking_code="",
             formatted_summary="\n".join(lines),
             stake=stake,
             sportybet_bonus_pct=calc_res["bonus_pct"],

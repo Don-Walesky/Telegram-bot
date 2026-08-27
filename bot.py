@@ -219,6 +219,16 @@ def run_pipeline(target_date: str = "Today", sport: str = "All") -> BookingSlipR
         target_date_str=target_date, sport_filter=sport
     )
 
+    if not fixtures:
+        return BookingSlipResponse(
+            booking_code="",
+            share_url="https://www.sportybet.com/ng/m/sports/football/",
+            picks=[],
+            total_odds=1.0,
+            formatted_summary=f"⚠️ *No unstarted matches discovered for {target_date.upper()} in category {sport.upper()}.*",
+            unmapped_warning=False,
+        )
+
     # 2. SportyBet Catalog Fetching & Matching
     sb_events = SportyBetCatalogService.fetch_sportybet_catalog(sport=sport)
 
@@ -234,38 +244,22 @@ def run_pipeline(target_date: str = "Today", sport: str = "All") -> BookingSlipR
             else:
                 unmapped_count += 1
     else:
-        # Fallback offline catalog matching for demonstration/testing
-        for fix in fixtures:
-            mock_sb_event = {
-                "eventId": f"sr:match:{hash(fix.home_team) % 10000000}",
-                "homeTeamName": fix.home_team,
-                "awayTeamName": fix.away_team,
-                "tournament": {"name": fix.league},
-                "sport": {"name": fix.sport},
-                "estimateStartTime": int(fix.kickoff_time.timestamp() * 1000) if fix.kickoff_time else None,
-                "markets": [
-                    {
-                        "id": "10",
-                        "name": "Double Chance",
-                        "outcomes": [
-                            {"id": "1", "name": "1X", "odds": 1.12},
-                            {"id": "2", "name": "X2", "odds": 1.15},
-                        ],
-                    },
-                    {
-                        "id": "18",
-                        "name": "Over/Under Goals",
-                        "specifier": "total=1.5",
-                        "outcomes": [
-                            {"id": "12", "name": "Over 1.5", "odds": 1.10},
-                        ],
-                    },
-                ],
-            }
-            extracted = SportyBetCatalogService.extract_selections_from_event(mock_sb_event)
-            all_selections.extend(extracted)
+        # Catalog is empty: Do NOT generate mock/fake events. Inform user honestly.
+        return BookingSlipResponse(
+            booking_code="",
+            share_url="https://www.sportybet.com/ng/m/sports/football/",
+            picks=[],
+            total_odds=1.0,
+            formatted_summary=(
+                f"📡 *SportyBet Live Catalog Status Update*\n\n"
+                f"LiveScore discovered {len(fixtures)} unstarted matches for `{target_date.upper()}` ({sport.upper()}).\n"
+                f"However, SportyBet live catalog endpoints are currently updating or restricting request access.\n\n"
+                f"💡 *No fake events were generated.* Please retry in a few moments or use `/custom` to build a slip!"
+            ),
+            unmapped_warning=True,
+        )
 
-    # 3. Probability Filter (60% - 95% Bookmaker-Implied Probability, odds ~1.05 - 1.66)
+    # 3. Probability Filter (60% - 95% Bookmaker-Implied Probability)
     filtered_picks = ImpliedProbabilityFilter.filter_selections(
         all_selections, min_prob=60.0, max_prob=95.0
     )

@@ -7,7 +7,6 @@ class TestCustomSlipBuilder(unittest.TestCase):
         res = CustomSlipBuilder.generate_custom_slip(
             target_odds=2.0, game_count=3, min_probability=95.0
         )
-        self.assertIsNotNone(res.booking_code)
         self.assertEqual(res.min_probability, 95.0)
         self.assertIn("CUSTOM MULTI-SPORT PREDICTION SLIP", res.formatted_summary)
 
