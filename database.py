@@ -146,6 +146,28 @@ class DatabaseService:
             rows = cursor.fetchall()
             return [dict(row) for row in rows]
 
+    @classmethod
+    def get_admin_stats(cls) -> Dict:
+        with cls._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM generated_slips")
+            total_slips = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(*) FROM code_conversions")
+            total_conversions = cursor.fetchone()[0]
+
+            cursor.execute("SELECT COUNT(DISTINCT user_id) FROM generated_slips")
+            unique_users = cursor.fetchone()[0]
+
+            db_size_kb = round(os.path.getsize(DB_PATH) / 1024.0, 2) if os.path.exists(DB_PATH) else 0.0
+
+            return {
+                "total_slips": total_slips,
+                "total_conversions": total_conversions,
+                "unique_users": unique_users,
+                "db_size_kb": db_size_kb,
+            }
+
 
 if __name__ == "__main__":
     DatabaseService.init_db()

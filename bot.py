@@ -608,9 +608,87 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
         )
         context.user_data["current_slip"] = res
 
+        # Save to database history
+        user_id = query.from_user.id if query.from_user else 0
+        DatabaseService.save_slip(
+            user_id=user_id,
+            match_date=target_date,
+            sport=target_sport,
+            game_count=res.game_count,
+            target_odds=target_odds,
+            actual_odds=res.actual_odds,
+            min_probability=sel_prob,
+            booking_code="",
+            summary_text=res.formatted_summary,
+        )
+
         await query.message.edit_text(
             res.formatted_summary, reply_markup=build_main_menu_keyboard(), parse_mode="Markdown"
         )
+
+
+async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Displays user's last 5 generated bet slips from SQLite database."""
+    user_id = update.effective_user.id if update.effective_user else 0
+    history = DatabaseService.get_user_history(user_id=user_id, limit=5)
+
+    if not history:
+        await update.message.reply_text(
+            "📜 *SLIP HISTORY*\n\nNo saved bet slips found yet. Use `/scan` or `/custom` to build your first slip!",
+            reply_markup=build_main_menu_keyboard(),
+            parse_mode="Markdown",
+        )
+        return
+
+    lines = [
+        "📜 *YOUR GENERATED SLIP HISTORY*",
+        "━━━━━━━━━━━━━━━━━━━━",
+    ]
+    for idx, item in enumerate(history, 1):
+        date_str = item.get("match_date", "Today")
+        sport_str = item.get("sport", "All")
+        odds_val = item.get("actual_odds", 1.0)
+        game_cnt = item.get("game_count", 0)
+        created = item.get("created_at", "")[:16]
+
+        lines.append(
+            f"{idx}. 📅 `{date_str}` | 🏆 `{sport_str}` | ⚽ {game_cnt} Games\n"
+            f"   🎯 Actual Odds: `{odds_val:.2f}x` | 🕒 `{created}`\n"
+        )
+
+    lines.append("━━━━━━━━━━━━━━━━━━━━")
+    lines.append("💡 Click **Custom Slip Builder** to generate a new slip!")
+
+    await update.message.reply_text(
+        "\n".join(lines),
+        reply_markup=build_main_menu_keyboard(),
+        parse_mode="Markdown",
+    )
+
+
+async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Displays admin monitoring stats for bot owner."""
+    admin_id_str = os.getenv("ADMIN_USER_ID")
+    user_id = update.effective_user.id if update.effective_user else 0
+
+    if admin_id_str and str(user_id) != admin_id_str:
+        await update.message.reply_text("⛔ *Unauthorized:* Admin command restricted to bot owner.")
+        return
+
+    stats = DatabaseService.get_admin_stats()
+    text = (
+        "👑 *BOT OWNER ADMIN DASHBOARD*\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        f"📊 *Total Slips Generated:* `{stats['total_slips']}`\n"
+        f"🔄 *Total Code Conversions:* `{stats['total_conversions']}`\n"
+        f"👥 *Total Unique Users:* `{stats['unique_users']}`\n"
+        f"💾 *SQLite DB Size:* `{stats['db_size_kb']} KB`\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "🟢 *Status:* All modules & database operational."
+    )
+    await update.message.reply_text(
+        text, reply_markup=build_main_menu_keyboard(), parse_mode="Markdown"
+    )
 
 
 async def custom_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -678,6 +756,8 @@ def main() -> None:
 
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("custom", custom_command))
+    app.add_handler(CommandHandler("history", history_command))
+    app.add_handler(CommandHandler("admin", admin_command))
     app.add_handler(CommandHandler("today", today_command))
     app.add_handler(CommandHandler("tomorrow", tomorrow_command))
     app.add_handler(CommandHandler("sports", sports_command))
