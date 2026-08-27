@@ -172,9 +172,19 @@ class StrategyLearningEngine:
         else:
             lines.append("   ℹ️ Hourly background scanner runs every 60 mins to harvest new markets.")
 
+        # Tipster Channel Market Insights
+        from tipster_learning import TipsterMarketLearner
+        trends = TipsterMarketLearner.get_tipster_market_summary(limit=3)
+        lines.append("\n📢 *TOP WATCHED CHANNEL TIPSTER MARKETS*")
+        if trends:
+            for t in trends:
+                lines.append(f"   • `{t.market_name}` ({t.sport}) - Popularity: *{t.popularity_percentage}%*")
+        else:
+            lines.append("   ℹ️ Watching channels for posted booking codes to rank market popularity.")
+
         lines.extend([
             "━━━━━━━━━━━━━━━━━━━━",
-            "💡 *Learning Insight:* Combining Double Chance (1X/X2) with Over 1.5 Goals yields the highest long-term win consistency across all 5 platforms.",
+            "💡 *Learning Insight:* Combining Double Chance (1X/X2) with Over 1.5 Goals yields the highest long-term win consistency across all monitored channels and data platforms.",
             "━━━━━━━━━━━━━━━━━━━━",
         ])
 

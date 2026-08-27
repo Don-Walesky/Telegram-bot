@@ -68,6 +68,17 @@ class DatabaseService:
                 )
                 """
             )
+            cursor.execute(
+                """
+                CREATE TABLE IF NOT EXISTS tipster_market_learnings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    market_name TEXT UNIQUE,
+                    sport TEXT DEFAULT 'Football',
+                    occurrence_count INTEGER DEFAULT 1,
+                    last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
             conn.commit()
             logger.info("✅ Database schema initialized successfully.")
 
@@ -167,6 +178,37 @@ class DatabaseService:
                 "unique_users": unique_users,
                 "db_size_kb": db_size_kb,
             }
+
+    @classmethod
+    def record_tipster_market(cls, market_name: str, sport: str = "Football") -> None:
+        with cls._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO tipster_market_learnings (market_name, sport, occurrence_count, last_seen)
+                VALUES (?, ?, 1, CURRENT_TIMESTAMP)
+                ON CONFLICT(market_name) DO UPDATE SET
+                    occurrence_count = occurrence_count + 1,
+                    last_seen = CURRENT_TIMESTAMP
+                """,
+                (market_name, sport),
+            )
+            conn.commit()
+
+    @classmethod
+    def get_top_tipster_markets(cls, limit: int = 5) -> List[Dict]:
+        with cls._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT * FROM tipster_market_learnings
+                ORDER BY occurrence_count DESC, last_seen DESC
+                LIMIT ?
+                """,
+                (limit,),
+            )
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
 
 
 if __name__ == "__main__":

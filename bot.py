@@ -28,6 +28,8 @@ from probability_filter import ImpliedProbabilityFilter
 from sportybet_booking import SportyBetBookingClient, BookingSlipResponse
 from channel_monitor import ChannelMonitorService
 from code_converter import BetCodeConverterService
+from tipster_learning import TipsterMarketLearner
+from database import DatabaseService
 from learning_engine import StrategyLearningEngine
 from builder import CustomSlipBuilder
 
@@ -391,6 +393,18 @@ async def convert_command(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     res = BetCodeConverterService.convert_code_to_sportybet(
         source_code=code, source_bookmaker=from_bm
     )
+    # Learn tipster market pattern from converted code payload
+    TipsterMarketLearner.analyze_channel_post(f"Code {code} from {from_bm}")
+
+    user_id = update.effective_user.id if update.effective_user else 0
+    DatabaseService.save_conversion(
+        user_id=user_id,
+        source_code=code,
+        source_bookmaker=from_bm.capitalize(),
+        sportybet_code=res.sportybet_code,
+        provider_used=res.provider_used,
+    )
+
     report = BetCodeConverterService.format_conversion_report(res)
     await update.message.reply_text(
         report,
@@ -757,7 +771,10 @@ async def hourly_market_learning_job(context: ContextTypes.DEFAULT_TYPE) -> None
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    text = update.message.text.strip()
+    text = update.message.text.strip() if update.message and update.message.text else ""
+    if text:
+        TipsterMarketLearner.analyze_channel_post(text)
+
     await update.message.reply_text(
         f"You sent: `{text}`\n\n💡 Use `/scan` or `/custom` to discover fixtures and generate SportyBet booking codes!",
         reply_markup=build_main_menu_keyboard(),
