@@ -49,6 +49,8 @@ class ChannelSlipSiever:
             ("Ice Hockey", "NHL", "Colorado Avalanche", "Sharks", "Moneyline Win", 1.22, 82.0, "sr:match:110", "1", "1"),
         ]
 
+        future_kickoff = datetime.now() + timedelta(hours=6)
+
         for p in template_picks:
             sport, league, home, away, market, odds, prob, ev_id, m_id, o_id = p
             if prob >= min_probability:
@@ -58,7 +60,7 @@ class ChannelSlipSiever:
                     away_team=away,
                     league=league,
                     sport=sport,
-                    kickoff_time=datetime.now(),
+                    kickoff_time=future_kickoff,
                     market_id=m_id,
                     market_name=market,
                     outcome_id=o_id,
@@ -85,7 +87,7 @@ class ChannelSlipSiever:
                     away_team=away,
                     league=league,
                     sport=sport,
-                    kickoff_time=datetime.now(),
+                    kickoff_time=future_kickoff,
                     market_id=m_id,
                     market_name=market,
                     outcome_id=o_id,
