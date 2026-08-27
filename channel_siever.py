@@ -9,7 +9,7 @@ import logging
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 from sportybet_booking import SportyBetBookingClient, BookingSlipResponse
-from probability_filter import ImpliedProbabilityFilter, MatchedSelection
+from probability_filter import FilteredPick
 from tipster_learning import TipsterMarketLearner
 from database import DatabaseService
 
@@ -31,7 +31,7 @@ class ChannelSlipSiever:
         top_trends = TipsterMarketLearner.get_tipster_market_summary(limit=10)
 
         # Generate sieved picks from high-confidence channel markets
-        sieved_selections: List[MatchedSelection] = []
+        sieved_selections: List[FilteredPick] = []
 
         # Default high-probability market templates learned from top channels
         template_picks = [
@@ -51,13 +51,12 @@ class ChannelSlipSiever:
             sport, league, home, away, market, odds, prob, ev_id, m_id, o_id = p
             if prob >= min_probability:
                 sieved_selections.append(
-                    MatchedSelection(
+                    FilteredPick(
                         sport=sport,
                         league=league,
                         home_team=home,
                         away_team=away,
-                        market_name=market,
-                        selection_desc=market,
+                        safe_market=market,
                         odds=odds,
                         implied_probability=prob,
                         event_id=ev_id,
@@ -73,13 +72,12 @@ class ChannelSlipSiever:
             for p in template_picks[:game_count]:
                 sport, league, home, away, market, odds, prob, ev_id, m_id, o_id = p
                 sieved_selections.append(
-                    MatchedSelection(
+                    FilteredPick(
                         sport=sport,
                         league=league,
                         home_team=home,
                         away_team=away,
-                        market_name=market,
-                        selection_desc=market,
+                        safe_market=market,
                         odds=odds,
                         implied_probability=prob,
                         event_id=ev_id,
