@@ -189,18 +189,36 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 # /today
 async def today_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     context.user_data["target_date"] = "Today"
-    msg = "📅 Target date set to: **TODAY**.\nUse `/scan` or click **Scan & Match Catalog** below."
+    sport = context.user_data.get("target_sport", "All")
     await update.message.reply_text(
-        msg, reply_markup=build_main_menu_keyboard(), parse_mode="Markdown"
+        f"🔍 *Scanning Today's unstarted fixtures ({sport})...*\nPlease wait a moment...",
+        parse_mode="Markdown",
+    )
+    slip_res = await asyncio.to_thread(run_pipeline, "Today", sport)
+    context.user_data["current_slip"] = slip_res
+    await update.message.reply_text(
+        slip_res.formatted_summary,
+        reply_markup=build_main_menu_keyboard(),
+        parse_mode="Markdown",
+        disable_web_page_preview=False,
     )
 
 
 # /tomorrow
 async def tomorrow_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     context.user_data["target_date"] = "Tomorrow"
-    msg = "📆 Target date set to: **TOMORROW**.\nUse `/scan` or click **Scan & Match Catalog** below."
+    sport = context.user_data.get("target_sport", "All")
     await update.message.reply_text(
-        msg, reply_markup=build_main_menu_keyboard(), parse_mode="Markdown"
+        f"🔍 *Scanning Tomorrow's unstarted fixtures ({sport})...*\nPlease wait a moment...",
+        parse_mode="Markdown",
+    )
+    slip_res = await asyncio.to_thread(run_pipeline, "Tomorrow", sport)
+    context.user_data["current_slip"] = slip_res
+    await update.message.reply_text(
+        slip_res.formatted_summary,
+        reply_markup=build_main_menu_keyboard(),
+        parse_mode="Markdown",
+        disable_web_page_preview=False,
     )
 
 
@@ -402,19 +420,21 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             reply_markup=build_main_menu_keyboard(),
             parse_mode="Markdown",
         )
-    elif data == "cmd_today":
-        context.user_data["target_date"] = "Today"
+    elif data in ["cmd_today", "cmd_tomorrow"]:
+        target_date = "Today" if data == "cmd_today" else "Tomorrow"
+        context.user_data["target_date"] = target_date
+        sport = context.user_data.get("target_sport", "All")
         await query.message.edit_text(
-            "📅 Target date set to: **TODAY**.\nClick **Scan & Match Catalog** below.",
-            reply_markup=build_main_menu_keyboard(),
+            f"🔍 *Scanning {target_date}'s unstarted fixtures ({sport})...*\nPlease wait a moment...",
             parse_mode="Markdown",
         )
-    elif data == "cmd_tomorrow":
-        context.user_data["target_date"] = "Tomorrow"
+        slip_res = await asyncio.to_thread(run_pipeline, target_date, sport)
+        context.user_data["current_slip"] = slip_res
         await query.message.edit_text(
-            "📆 Target date set to: **TOMORROW**.\nClick **Scan & Match Catalog** below.",
+            slip_res.formatted_summary,
             reply_markup=build_main_menu_keyboard(),
             parse_mode="Markdown",
+            disable_web_page_preview=False,
         )
     elif data == "cmd_sports":
         await query.message.edit_text(
@@ -437,12 +457,13 @@ async def menu_callback_handler(update: Update, context: ContextTypes.DEFAULT_TY
             f"🔍 *Scanning LiveScore fixtures & matching SportyBet catalog...*\nDate: `{target_date}` | Sport: `{sport}`",
             parse_mode="Markdown",
         )
-        slip_res = run_pipeline(target_date=target_date, sport=sport)
+        slip_res = await asyncio.to_thread(run_pipeline, target_date, sport)
         context.user_data["current_slip"] = slip_res
         await query.message.edit_text(
             slip_res.formatted_summary,
             reply_markup=build_main_menu_keyboard(),
             parse_mode="Markdown",
+            disable_web_page_preview=False,
         )
     elif data == "cmd_slip":
         slip_res = context.user_data.get("current_slip")
