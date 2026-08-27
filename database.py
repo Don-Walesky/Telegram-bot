@@ -16,70 +16,79 @@ DB_PATH = os.path.join(DB_DIR, "bot_history.db")
 
 
 class DatabaseService:
+    _initialized = False
+
     @classmethod
     def _get_connection(cls) -> sqlite3.Connection:
         os.makedirs(DB_DIR, exist_ok=True)
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
+        if not cls._initialized:
+            cls._ensure_tables(conn)
+            cls._initialized = True
         return conn
+
+    @classmethod
+    def _ensure_tables(cls, conn: sqlite3.Connection) -> None:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS generated_slips (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                match_date TEXT,
+                sport TEXT,
+                game_count INTEGER,
+                target_odds REAL,
+                actual_odds REAL,
+                min_probability REAL,
+                booking_code TEXT,
+                summary_text TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS code_conversions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                source_code TEXT,
+                source_bookmaker TEXT,
+                sportybet_code TEXT,
+                provider_used TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_preferences (
+                user_id INTEGER PRIMARY KEY,
+                target_date TEXT DEFAULT 'Today',
+                target_sport TEXT DEFAULT 'All',
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS tipster_market_learnings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                market_name TEXT UNIQUE,
+                sport TEXT DEFAULT 'Football',
+                occurrence_count INTEGER DEFAULT 1,
+                last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.commit()
 
     @classmethod
     def init_db(cls) -> None:
         """Initialize database schema tables if not present."""
         with cls._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS generated_slips (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    match_date TEXT,
-                    sport TEXT,
-                    game_count INTEGER,
-                    target_odds REAL,
-                    actual_odds REAL,
-                    min_probability REAL,
-                    booking_code TEXT,
-                    summary_text TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-                """
-            )
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS code_conversions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    source_code TEXT,
-                    source_bookmaker TEXT,
-                    sportybet_code TEXT,
-                    provider_used TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-                """
-            )
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS user_preferences (
-                    user_id INTEGER PRIMARY KEY,
-                    target_date TEXT DEFAULT 'Today',
-                    target_sport TEXT DEFAULT 'All',
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-                """
-            )
-            cursor.execute(
-                """
-                CREATE TABLE IF NOT EXISTS tipster_market_learnings (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    market_name TEXT UNIQUE,
-                    sport TEXT DEFAULT 'Football',
-                    occurrence_count INTEGER DEFAULT 1,
-                    last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-                """
-            )
-            conn.commit()
+            cls._ensure_tables(conn)
             logger.info("✅ Database schema initialized successfully.")
 
     @classmethod
