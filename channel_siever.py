@@ -7,7 +7,7 @@ and builds high-win SportyBet load links.
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from sportybet_booking import SportyBetBookingClient, BookingSlipResponse
 from sportybet_catalog import MappedSportyBetSelection
