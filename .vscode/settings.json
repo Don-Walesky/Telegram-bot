@@ -13,22 +13,35 @@
         "${workspaceFolder}/venv/Lib/site-packages"
     ],
     "cSpell.words": [
+        "asyncio",
+        "AUTOINCREMENT",
         "Betloy",
+        "Betslip",
         "bilns",
         "btts",
+        "Clientid",
+        "Dataclasses",
         "Defence",
         "dotenv",
+        "getenv",
+        "headful",
         "httpx",
         "jhgfdghgdhjjj",
         "KHTML",
         "lastrowid",
         "livescore",
         "Moneyline",
+        "multisport",
         "OLBG",
+        "Procfile",
+        "PYTHONDONTWRITEBYTECODE",
+        "PYTHONUNBUFFERED",
         "pyvenv",
+        "rapidapi",
         "siever",
         "sportybet",
         "SPORTYBET",
-        "unstarted"
+        "unstarted",
+        "Walesky"
     ]
 }
