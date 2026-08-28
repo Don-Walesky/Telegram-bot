@@ -23,7 +23,9 @@ class TestSlipHandlers(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_custom_command(self):
+        self.context.user_data["wiz"] = {"stale_date": "Yesterday"}
         await custom_command(self.update, self.context)
+        self.assertEqual(self.context.user_data["wiz"], {})
         self.update.message.reply_text.assert_called_once()
         self.assertIn("Custom Slip Builder Wizard", self.update.message.reply_text.call_args[0][0])
 

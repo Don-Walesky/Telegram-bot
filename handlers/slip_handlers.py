@@ -25,7 +25,8 @@ logger = logging.getLogger(__name__)
 
 # /custom
 async def custom_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Launches Step 1 of the Custom Bet Builder Wizard."""
+    """Launches Step 1 of the Custom Bet Builder Wizard and resets user wizard state."""
+    context.user_data["wiz"] = {}
     msg_target = update.message if update.message else update.callback_query.message
     await msg_target.reply_text(
         "🛠️ *Custom Slip Builder Wizard*\nSelect Target Date:",
@@ -40,6 +41,7 @@ async def handle_slip_callback(query, data: str, context: ContextTypes.DEFAULT_T
     Returns True if the callback was processed by slip handlers, False otherwise.
     """
     if data == "wiz_start":
+        context.user_data["wiz"] = {}
         await query.message.edit_text(
             "🛠️ *Custom Slip Builder Wizard*\nSelect Target Date:",
             reply_markup=build_wiz_date_keyboard(),
