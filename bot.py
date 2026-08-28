@@ -33,6 +33,7 @@ from tipster_learning import TipsterMarketLearner
 from database import DatabaseService
 from learning_engine import StrategyLearningEngine
 from builder import CustomSlipBuilder
+from betting_service import BettingService
 from config import config
 from exceptions import BotError, ExternalAPIError, DatabaseError, ValidationError
 
@@ -282,67 +283,9 @@ async def sports_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     )
 
 
-# Helper: Perform scan and mapping pipeline
+# Helper: Perform scan and mapping pipeline via BettingService
 def run_pipeline(target_date: str = "Today", sport: str = "All") -> BookingSlipResponse:
-    # 1. Discovery
-    fixtures = LiveScoreClient.fetch_unstarted_fixtures(
-        target_date_str=target_date, sport_filter=sport
-    )
-
-    if not fixtures:
-        return BookingSlipResponse(
-            booking_code="",
-            share_url="https://www.sportybet.com/ng/m/sports/football/",
-            picks=[],
-            total_odds=1.0,
-            formatted_summary=f"⚠️ *No unstarted matches discovered for {target_date.upper()} in category {sport.upper()}.*",
-            unmapped_warning=False,
-        )
-
-    # 2. SportyBet Catalog Fetching & Matching
-    sb_events = SportyBetCatalogService.fetch_sportybet_catalog(sport=sport)
-
-    all_selections = []
-    unmapped_count = 0
-
-    if sb_events:
-        for fix in fixtures:
-            sb_event = SportyBetCatalogService.match_fixture(fix, sb_events)
-            if sb_event:
-                extracted = SportyBetCatalogService.extract_selections_from_event(sb_event)
-                all_selections.extend(extracted)
-            else:
-                unmapped_count += 1
-    else:
-        # Catalog is empty: Do NOT generate mock/fake events. Inform user honestly.
-        return BookingSlipResponse(
-            booking_code="",
-            share_url="https://www.sportybet.com/ng/m/sports/football/",
-            picks=[],
-            total_odds=1.0,
-            formatted_summary=(
-                f"📡 *SportyBet Live Catalog Status Update*\n\n"
-                f"LiveScore discovered {len(fixtures)} unstarted matches for `{target_date.upper()}` ({sport.upper()}).\n"
-                f"However, SportyBet live catalog endpoints are currently updating or restricting request access.\n\n"
-                f"💡 *No fake events were generated.* Please retry in a few moments or use `/custom` to build a slip!"
-            ),
-            unmapped_warning=True,
-        )
-
-    # 3. Probability Filter (Bookmaker-Implied Probability bounds from config)
-    filtered_picks = ImpliedProbabilityFilter.filter_selections(
-        all_selections,
-        min_prob=config.betting.min_implied_probability,
-        max_prob=config.betting.max_implied_probability,
-    )
-
-    # Limit to top safest picks for a clean multi-leg slip
-    slip_picks = filtered_picks[:config.betting.default_scan_legs]
-
-    # 4. Generate Official SportyBet Booking Code or Structured Fallback
-    slip_res = SportyBetBookingClient.generate_booking_code(slip_picks, country_code="ng")
-    slip_res.unmapped_warning = (unmapped_count > 0)
-    return slip_res
+    return BettingService.execute_scan_pipeline(target_date=target_date, sport=sport)
 
 
 # /scan

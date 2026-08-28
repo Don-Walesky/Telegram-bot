@@ -29,11 +29,11 @@ The system follows an implicit 4-layer structure, heavily orchestrated by `bot.p
                   +-------+-------------------+-----------------+---+
                           |                   |                 |
                           v                   v                 v
-+-----------------------------------+  +---------------+  +---------------------+
-|      Application Services         |  |   Domain &    |  | Persistence Layer   |
-| (CustomSlipBuilder, ChannelSiever |  | Prediction    |  |  (DatabaseService,  |
-| CodeEditor, BetCodeConverter)     |  | Engine        |  |  bot_history.db)    |
-+-----------------+-----------------+  +-------+-------+  +---------------------+
++-------------------------------------------------------------+
+|               Application Services Layer                    |
+| (BettingService, CustomSlipBuilder, ChannelSlipSiever,     |
+| CodeEditor, BetCodeConverter, StrategyLearningEngine)       |
++-----------------+-------------------------------------------+
                   |                            |
                   +-----------------+----------+
                                     |
