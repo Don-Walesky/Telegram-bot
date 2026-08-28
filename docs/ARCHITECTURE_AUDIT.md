@@ -97,7 +97,7 @@ User interaction flows are powered by `python-telegram-bot` async handlers:
 ```
 
 ### Async Flow Safety
-Long-running scan pipelines (`run_pipeline`, `CustomSlipBuilder.generate_custom_slip`, `ChannelSlipSiever.scan_and_sieve_channel_slips`) are wrapped in `await asyncio.to_thread(...)` to ensure the Telegram event loop remains non-blocking.
+Long-running scan pipelines (`BettingService.execute_scan_pipeline`, `CustomSlipBuilder.generate_custom_slip`, `ChannelSlipSiever.scan_and_sieve_channel_slips`) are wrapped in `await asyncio.to_thread(...)` to ensure the Telegram event loop remains non-blocking.
 
 ---
 
