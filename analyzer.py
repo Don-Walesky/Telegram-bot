@@ -57,7 +57,9 @@ class PredictionAnalyzer:
         return PredictionAnalyzer.convert_to_safe_market(raw_pred, "Football")
 
     @staticmethod
-    def analyze_high_probability_fixtures(target_threshold: float = 95.0) -> List[ConsensusPrediction]:
+    def analyze_high_probability_fixtures(
+        target_threshold: float = config.betting.max_implied_probability,
+    ) -> List[ConsensusPrediction]:
         return PredictionAnalyzer.analyze_consensus_predictions(min_probability=target_threshold)
 
     @staticmethod

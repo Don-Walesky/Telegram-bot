@@ -329,13 +329,15 @@ def run_pipeline(target_date: str = "Today", sport: str = "All") -> BookingSlipR
             unmapped_warning=True,
         )
 
-    # 3. Probability Filter (60% - 95% Bookmaker-Implied Probability)
+    # 3. Probability Filter (Bookmaker-Implied Probability bounds from config)
     filtered_picks = ImpliedProbabilityFilter.filter_selections(
-        all_selections, min_prob=60.0, max_prob=95.0
+        all_selections,
+        min_prob=config.betting.min_implied_probability,
+        max_prob=config.betting.max_implied_probability,
     )
 
-    # Limit to top 5 safest picks for a clean multi-leg slip
-    slip_picks = filtered_picks[:5]
+    # Limit to top safest picks for a clean multi-leg slip
+    slip_picks = filtered_picks[:config.betting.default_scan_legs]
 
     # 4. Generate Official SportyBet Booking Code or Structured Fallback
     slip_res = SportyBetBookingClient.generate_booking_code(slip_picks, country_code="ng")

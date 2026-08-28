@@ -5,6 +5,7 @@ Integrates multi-source consensus analytics and preset SportyBet booking slips.
 
 from typing import Dict, List
 from analyzer import PredictionAnalyzer
+from config import config
 
 
 class PredictionsService:
@@ -13,7 +14,9 @@ class PredictionsService:
         """
         Returns curated daily football predictions analyzed across top sources.
         """
-        safe_picks = PredictionAnalyzer.analyze_high_probability_fixtures(target_threshold=95.0)
+        safe_picks = PredictionAnalyzer.analyze_high_probability_fixtures(
+            target_threshold=config.betting.max_implied_probability
+        )
 
         result = []
         for pick in safe_picks:

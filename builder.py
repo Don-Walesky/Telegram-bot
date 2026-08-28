@@ -59,7 +59,7 @@ class CustomSlipBuilder:
         if not unstarted_candidates:
             # Fallback if no matches met threshold: pull all upcoming unstarted
             unstarted_candidates = PredictionAnalyzer.analyze_consensus_predictions(
-                min_probability=60.0,
+                min_probability=config.betting.min_implied_probability,
                 match_date=match_date,
                 sport=sport,
             )
