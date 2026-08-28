@@ -23,10 +23,7 @@ from telegram.ext import (
     filters,
 )
 
-from livescore_client import LiveScoreClient
-from sportybet_catalog import SportyBetCatalogService
-from probability_filter import ImpliedProbabilityFilter
-from sportybet_booking import SportyBetBookingClient, BookingSlipResponse
+from sportybet_booking import BookingSlipResponse
 from channel_monitor import ChannelMonitorService
 from code_converter import BetCodeConverterService
 from tipster_learning import TipsterMarketLearner
@@ -63,11 +60,6 @@ logging.basicConfig(
     level=getattr(logging, config.app.log_level, logging.INFO),
 )
 logger = logging.getLogger(__name__)
-
-
-# Helper: Perform scan and mapping pipeline via BettingService
-def run_pipeline(target_date: str = "Today", sport: str = "All") -> BookingSlipResponse:
-    return BettingService.execute_scan_pipeline(target_date=target_date, sport=sport)
 
 
 async def post_init(application) -> None:
