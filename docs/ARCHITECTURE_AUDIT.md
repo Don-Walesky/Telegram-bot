@@ -51,7 +51,10 @@ The system follows an implicit 4-layer structure, heavily orchestrated by `bot.p
 
 | Module | Responsibility | Dependencies | Risk | Future Role |
 | :--- | :--- | :--- | :--- | :--- |
-| [`bot.py`](file:///c:/Users/WALE/TELEGRAM-bot/bot.py) | Entry point, Telegram handlers, keyboard builders, wizards, background jobs. | Almost all modules | **HIGH** | Presentation Layer / Telegram Controllers |
+| [`bot.py`](file:///c:/Users/WALE/TELEGRAM-bot/bot.py) | Main entry point, Telegram application initialization, command handlers registration, background jobs. | Telegram UI modules | **LOW** | Presentation Layer / App Router |
+| [`handlers/scan_handlers.py`](file:///c:/Users/WALE/TELEGRAM-bot/handlers/scan_handlers.py) | Handles standard scan commands (/today, /tomorrow, /scan, /sports) and scan callback queries. | `betting_service`, `keyboards` | **LOW** | Scan Telegram UI Handlers |
+| [`keyboards.py`](file:///c:/Users/WALE/TELEGRAM-bot/keyboards.py) | Centralized UI inline keyboard builders for main menu, sport selections, wizards, and siever options. | `telegram` | **LOW** | UI Keyboard Layout Provider |
+| [`betting_service.py`](file:///c:/Users/WALE/TELEGRAM-bot/betting_service.py) | Core application service orchestrating end-to-end fixture discovery, SportyBet catalog matching, implied probability filtering, and booking code generation. | `livescore_client`, `sportybet_catalog`, `probability_filter`, `sportybet_booking` | **LOW** | Core Betting Application Service |
 | [`livescore_client.py`](file:///c:/Users/WALE/TELEGRAM-bot/livescore_client.py) | Ingests unstarted fixtures across 4 sports from LiveScore REST CDN endpoints. | `httpx`, `datetime`, `re` | **MEDIUM** | Ingestion Gateway Service |
 | [`sportybet_catalog.py`](file:///c:/Users/WALE/TELEGRAM-bot/sportybet_catalog.py) | Queries SportyBet live catalog, flattens tournaments, fuzzy matches teams. | `httpx`, `SequenceMatcher`, `livescore_client` | **MEDIUM** | Bookmaker Catalog Gateway |
 | [`probability_filter.py`](file:///c:/Users/WALE/TELEGRAM-bot/probability_filter.py) | Calculates $(1 / \text{odds}) \times 100\%$ implied probability and filters picks within safety range. | `sportybet_catalog` | **LOW** | Core Domain Calculation Service |
