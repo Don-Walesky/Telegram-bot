@@ -4,6 +4,7 @@ Integrates LiveScore Discovery, SportyBet Catalog Matcher, Implied-Probability F
 and SportyBet Official Booking Code Client.
 """
 
+import asyncio
 import logging
 import os
 from datetime import datetime, timedelta
@@ -32,11 +33,6 @@ from learning_engine import StrategyLearningEngine
 from keyboards import (
     build_main_menu_keyboard,
     build_sport_keyboard,
-    build_wiz_date_keyboard,
-    build_wiz_sport_keyboard,
-    build_wiz_odds_keyboard,
-    build_wiz_count_keyboard,
-    build_wiz_prob_keyboard,
     build_chan_wiz_prob_keyboard,
     build_chan_wiz_count_keyboard,
 )
@@ -460,24 +456,6 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     await update.message.reply_text(
         text, reply_markup=build_main_menu_keyboard(), parse_mode="Markdown"
     )
-
-
-async def custom_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Start interactive 5-step custom bet slip wizard."""
-    context.user_data["wiz"] = {}
-    text = (
-        "⚙️ *CUSTOM MULTI-SPORT SLIP BUILDER WIZARD*\n\n"
-        "Welcome! Follow this 5-step interactive wizard to build a tailored bet slip matching your exact odds, game count, and probability preferences.\n\n"
-        "📌 *Step 1 of 5: Select Match Date*"
-    )
-    if update.callback_query:
-        await update.callback_query.message.edit_text(
-            text, reply_markup=build_wiz_date_keyboard(), parse_mode="Markdown"
-        )
-    else:
-        await update.message.reply_text(
-            text, reply_markup=build_wiz_date_keyboard(), parse_mode="Markdown"
-        )
 
 
 async def learn_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
