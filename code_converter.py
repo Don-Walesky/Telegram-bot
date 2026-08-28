@@ -11,6 +11,7 @@ from typing import Dict, List, Optional
 import httpx
 from config import config
 from http_client import HTTPClientProvider
+from exceptions import BetCodeConversionError
 
 logger = logging.getLogger(__name__)
 

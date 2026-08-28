@@ -16,6 +16,7 @@ import httpx
 from probability_filter import FilteredPick
 from config import config
 from http_client import HTTPClientProvider
+from exceptions import SportyBetAPIError
 
 logger = logging.getLogger(__name__)
 

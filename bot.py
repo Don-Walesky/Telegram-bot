@@ -34,6 +34,7 @@ from database import DatabaseService
 from learning_engine import StrategyLearningEngine
 from builder import CustomSlipBuilder
 from config import config
+from exceptions import BotError, ExternalAPIError, DatabaseError, ValidationError
 
 # Load environment variables & token
 TOKEN = config.env.telegram_bot_token
@@ -890,6 +891,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     logger.error("Exception handling update:", exc_info=context.error)
+    if isinstance(update, Update) and update.effective_message:
+        err = context.error
+        if isinstance(err, BotError):
+            msg = f"⚠️ *Application Notice:* {err.message}"
+        else:
+            msg = "⚠️ *Temporary Error:* Something went wrong while processing your request. Please try again."
+        try:
+            await update.effective_message.reply_text(msg, parse_mode="Markdown")
+        except Exception as e:
+            logger.warning(f"Failed to send error message to Telegram user: {e}")
 
 
 def main() -> None:

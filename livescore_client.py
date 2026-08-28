@@ -14,6 +14,7 @@ import httpx
 
 from config import config
 from http_client import HTTPClientProvider
+from exceptions import LiveScoreAPIError
 
 logger = logging.getLogger(__name__)
 

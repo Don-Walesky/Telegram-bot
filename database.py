@@ -9,6 +9,7 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Optional
 from config import config
+from exceptions import DatabaseError
 
 logger = logging.getLogger(__name__)
 

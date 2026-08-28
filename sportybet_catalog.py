@@ -15,6 +15,7 @@ import httpx
 from livescore_client import DiscoveredFixture
 from config import config
 from http_client import HTTPClientProvider
+from exceptions import SportyBetAPIError
 
 logger = logging.getLogger(__name__)
 
