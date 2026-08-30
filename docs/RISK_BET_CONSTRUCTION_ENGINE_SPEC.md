@@ -842,3 +842,325 @@ The following items require project owner confirmation before beginning Phase 1 
 ## 39. Recommended Next Step
 
 **Execute Phase 1:** Define the pure data contracts (`BetCandidate`, `BetConstructionRequest`, `BetConstructionResult`, `ConstructionStatusCode`, `RejectionCategory`) and unit tests in an isolated module branch without modifying existing handlers or database schemas.
+
+---
+
+# PART II: ENGINEERING FEASIBILITY & IMPLEMENTATION TIERS
+
+---
+
+## 40. Feasibility Matrix & Capability Classification
+
+Every major engine capability specified in Part I is evaluated against the active repository's data structures, database schemas, network APIs, and mathematical reality:
+
+| Capability | Feasibility Status | Existing Evidence / Module | Missing Dependency / Reality Gap | Recommendation for Engineering |
+| :--- | :---: | :--- | :--- | :--- |
+| **BetCandidate Normalization** | **IMPLEMENTABLE NOW** | `MappedSportyBetSelection`, `DiscoveredFixture` | None (pure domain dataclass abstraction) | Implement in `models/` or `engine/contracts.py` as V1 foundation. |
+| **BetConstructionRequest Contract** | **IMPLEMENTABLE NOW** | Wizard params in `handlers/slip_handlers.py` | None | Formalize typed request dataclass separating user config from safety limits. |
+| **BetConstructionResult Contract** | **IMPLEMENTABLE NOW** | `CustomSlipResult`, `BookingSlipResponse` | None | Formalize typed accumulator output with explainability metadata. |
+| **Hard Safety Constraints** | **IMPLEMENTABLE NOW** | `LiveScoreClient.is_unstarted_match` | None | Implement binary pass/fail filter for kickoff, odds bounds, and freshness TTL. |
+| **Fixture-Status Validation** | **IMPLEMENTABLE NOW** | `LiveScoreClient` status (`"NS"`) | None | Hard rejection of started, live, or settled matches ($> \text{Now} + 120\text{s}$). |
+| **Decimal Odds Validation** | **IMPLEMENTABLE NOW** | `MappedSportyBetSelection.odds` | None | Enforce $\ge 1.01$ and risk profile bounds ($\text{Odds}_{\text{min}} \le \text{Odds} \le \text{Odds}_{\text{max}}$). |
+| **Odds Freshness TTL** | **IMPLEMENTABLE NOW** | Snapshot timestamps | In-memory cache timestamp | Track `ingested_at` timestamp; drop candidates older than 300s. |
+| **Implied Probability** | **IMPLEMENTABLE NOW** | `ImpliedProbabilityFilter` | None | Standardize $(1.0 / \text{Odds}) \times 100\%$ with explicit bookmaker label. |
+| **Candidate Ranking** | **IMPLEMENTABLE NOW** | `builder.py`, `analyzer.py` | Multi-factor weighting | Implement composite utility score sorting. |
+| **Same-Match Conflict Detection** | **IMPLEMENTABLE NOW** | `event_id` in `MappedSportyBetSelection` | None | Strictly enforce maximum 1 selection per match event ID. |
+| **Team Multi-Leg Exposure** | **IMPLEMENTABLE NOW** | `home_team`, `away_team` strings | None | Deduplicate teams across slip legs. |
+| **League Concentration Limits** | **IMPLEMENTABLE NOW** | `league` field in selections | None | Apply soft penalty if $> 40\%$ legs originate from one league. |
+| **Sport Concentration Limits** | **IMPLEMENTABLE NOW** | `sport` field in selections | None | Apply soft penalty if $> 70\%$ legs originate from one sport. |
+| **Configuration Risk Profiles** | **IMPLEMENTABLE NOW** | UI threshold buttons (`85%`, `90%`) | Statistical calibration | Use configuration-based boundaries (Conservative, Balanced, Aggressive). |
+| **Target Odds Convergence** | **IMPLEMENTABLE NOW** | `BetCalculator.calculate_accumulator` | Multi-objective solver | Constrained greedy beam search converging toward target combined odds. |
+| **Selection Count Shortfall** | **IMPLEMENTABLE NOW** | `builder.py` fallback slicing | None | Enforce "No Bad Bets" rule; return best valid subset and warn user. |
+| **Explainability Reason Codes** | **IMPLEMENTABLE NOW** | Markdown string formatters | None | Emit machine-readable acceptance/rejection enum codes. |
+| **Safe Fallback Degradation** | **IMPLEMENTABLE NOW** | `SportyBetBookingClient` fallback | None | Zero data fabrication; return clean structured explanations on API denial. |
+| **Bookmaker Overround De-vigging**| **PREREQUISITE REQUIRED** | `SportyBetCatalogService` | Full 2-way/3-way market book | Calculate $\sum (1/\text{Odds}_i) - 1.0$ when full market outcomes are fetched. |
+| **Normalized Historical Bet Legs** | **PREREQUISITE REQUIRED** | `generated_slips` (Monolithic string) | Child relational schema | Add `slip_legs` child table storing candidate IDs, odds, and timestamps. |
+| **Settlement Tracking** | **PREREQUISITE REQUIRED** | None | Post-match score scraper | Create `match_settlements` table and scrape finished scores from LiveScore. |
+| **Empirical Source Reliability** | **PREREQUISITE REQUIRED** | `tipster_market_learnings` | Graded win/loss counts | Link tipster posts to settlement results to record true hit rate. |
+| **Bayesian Sample-Size Shrinkage** | **PREREQUISITE REQUIRED** | Occurrence count only | Graded historical trials | Implement $R = \frac{N}{N+K}\mu_{\text{data}} + \frac{K}{N+K}\mu_{\text{prior}}$ once settlements exist. |
+| **Time Decay on Inactivity** | **PREREQUISITE REQUIRED** | `last_seen` timestamp in DB | None | Apply exponential decay $e^{-\lambda \Delta t}$ based on activity gap. |
+| **Genuine Model Probability** | **FUTURE INFRASTRUCTURE** | `analyzer.py` (Static lookups) | Trained ML prediction model | Train logistic regression / XGBoost model on historical feature sets. |
+| **True Expected Value ($\text{EV}$)** | **FUTURE INFRASTRUCTURE** | None (Assumes $P_{\text{model}} \approx P_{\text{implied}}$) | Calibrated ML probability | Compute $\text{EV} = (P_{\text{ML}} \cdot \text{Odds}) - 1.0$ after ML model is deployed. |
+| **Probability Calibration (Brier)**| **FUTURE INFRASTRUCTURE** | None | Settled outcome dataset | Calibrate model probabilities using Platt scaling / isotonic regression. |
+| **Historical Odds Timeline** | **FUTURE INFRASTRUCTURE** | Snapshot catalog only | Time-series odds database | Capture opening vs closing odds movements over time. |
+| **Historical Prediction Snapshots**| **FUTURE INFRASTRUCTURE** | None | Immutable snapshot store | Store point-in-time feature snapshots at decision timestamp $T$. |
+| **Historical Backtesting Engine** | **FUTURE INFRASTRUCTURE** | None | Backtest harness & data | Deterministic replay simulator evaluating ROI, hit rate, and drawdowns. |
+| **Empirical Covariance Graph** | **FUTURE INFRASTRUCTURE** | None | Multi-match outcome covariance | Statistical dependency modeling across leagues and referee assignments. |
+| **Learned Risk Profiles** | **FUTURE INFRASTRUCTURE** | Static configuration | Reinforcement / Bayesian tuning| Automatically optimize profile thresholds based on realized bankroll Sharpe. |
+
+---
+
+## 41. Probability Reality Audit
+
+A meticulous code trace through [`analyzer.py`](file:///c:/Users/WALE/TELEGRAM-bot/analyzer.py), [`aggregator.py`](file:///c:/Users/WALE/TELEGRAM-bot/aggregator.py), [`probability_filter.py`](file:///c:/Users/WALE/TELEGRAM-bot/probability_filter.py), and [`builder.py`](file:///c:/Users/WALE/TELEGRAM-bot/builder.py) reveals the exact origins of probability in the active system:
+
+```
+[SportyBet Live Catalog] ────────► Decimal Odds (e.g. 1.25)
+                                          │
+                                          ▼
+                               [probability_filter.py]
+                   Implied Probability = (1.0 / Odds) * 100% = 80.0%
+                        (GENUINE BOOKMAKER-IMPLIED PROBABILITY)
+                                          ▲
+                                          │
+[LiveScore Discovered Match] ────► [analyzer.py / aggregator.py]
+                               Static Lookup Dictionary:
+                               "Home Win" -> "Double Chance (1X)" @ 1.18 (85.0%)
+                               (STATIC MARKET MAPPING / SYNTHETIC HEURISTIC)
+```
+
+### Engineering Verdict on Probability
+1. **Bookmaker-Implied Probability is Genuine:** [`probability_filter.py`](file:///c:/Users/WALE/TELEGRAM-bot/probability_filter.py) accurately calculates mathematical implied probability $(1.0 / \text{odds}) \times 100\%$. This represents the bookmaker's pricing (inclusive of margin).
+2. **Consensus Probability is a Static Heuristic:** [`analyzer.py`](file:///c:/Users/WALE/TELEGRAM-bot/analyzer.py) assigns static probabilities from hardcoded dictionaries (e.g. Double Chance $= 85\%$, Over 1.5 $= 90\%$, Draw No Bet $= 80\%$) with synthetic odds ($1.15 - 1.25$). It does **NOT** run statistical machine learning, logistic regression, or dynamic match forecasting.
+3. **Implications for V1 Risk Engine:**
+   * In V1, the engine must **never** claim to possess "AI/ML predicted probability".
+   * V1 must explicitly use **Bookmaker-Implied Probability (de-vigged where book is available)** as the primary probability baseline.
+   * V1 will allow consensus heuristic scores as a secondary preference factor, clearly labeled as `Consensus Heuristic`.
+
+---
+
+## 42. Learning Reality Audit
+
+A trace through [`learning_engine.py`](file:///c:/Users/WALE/TELEGRAM-bot/learning_engine.py) and [`tipster_learning.py`](file:///c:/Users/WALE/TELEGRAM-bot/tipster_learning.py) establishes what the system is currently learning:
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                WHAT THE SYSTEM ACTUALLY DOES                           │
+├───────────────────────────────────┬────────────────────────────────────────────────────┤
+│ Subsystem                         │ Concrete Implementation Reality                    │
+├───────────────────────────────────┼────────────────────────────────────────────────────┤
+│ StrategyLearningEngine            │ Market Discovery: Ingests SportyBet catalog hourly │
+│ (learning_engine.py)              │ to record newly active marketId / outcomeId keys.  │
+│                                   │ Static Rules: Holds hardcoded combination tuples   │
+│                                   │ (e.g. DC + Over 1.5 Goals with static win rate).   │
+├───────────────────────────────────┼────────────────────────────────────────────────────┤
+│ TipsterMarketLearner              │ Frequency Tracking: Parses regex keywords from     │
+│ (tipster_learning.py)             │ forwarded Telegram channel posts and increments    │
+│                                   │ occurrence_count in tipster_market_learnings.      │
+├───────────────────────────────────┼────────────────────────────────────────────────────┤
+│ Predictive Learning               │ NON-EXISTENT: Does NOT track whether tips won/lost,│
+│                                   │ does NOT compute Brier calibration, does NOT update│
+│                                   │ model weights dynamically based on match outcomes. │
+└───────────────────────────────────┴────────────────────────────────────────────────────┘
+```
+
+### Engineering Verdict on Learning
+* Market occurrence count measures **tipster popularity**, not **tipster accuracy**.
+* High frequency $\ne$ high win rate.
+* **Implications for V1:** The V1 engine must not use fake Bayesian accuracy. It will use occurrence counts strictly as a `Market Popularity / Provenance Factor` ($w_{\text{source}}$), while true Bayesian predictive learning is scheduled for V1.5 (after settlement tracking is deployed).
+
+---
+
+## 43. Historical Data & Schema Audit
+
+An inspection of [`database.py`](file:///c:/Users/WALE/TELEGRAM-bot/database.py) and the SQLite schema reveals the current data storage state:
+
+```sql
+-- CURRENT SCHEMA STATE (database.py)
+generated_slips (id, user_id, match_date, sport, game_count, target_odds, actual_odds, min_probability, booking_code, summary_text, created_at)
+code_conversions (id, user_id, source_code, source_bookmaker, sportybet_code, provider_used, created_at)
+user_preferences (user_id, target_date, target_sport, updated_at)
+tipster_market_learnings (id, market_name, sport, occurrence_count, last_seen)
+```
+
+### Missing Historical Fields Required for Advanced Intelligence
+* ❌ **Normalized Bet Legs:** Individual legs are locked in `summary_text` (monolithic Markdown); cannot query legs by market ID or odds.
+* ❌ **Point-in-Time Odds Snapshot:** No record of opening vs closing odds movements.
+* ❌ **Point-in-Time Probability Snapshot:** No recording of candidate model probabilities at decision time.
+* ❌ **Match Settlement Results:** Match scores are unrecorded post-match; betslips are never marked WON, LOST, or VOID.
+
+---
+
+## 44. Backtesting Feasibility
+
+### Can the System Honestly Execute Historical Backtests Today?
+**NO.** The current repository cannot execute a valid historical replay backtest because:
+1. Historical odds snapshots at time $T$ are not stored.
+2. Historical match outcomes (final scores) are not collected.
+3. Simulating on current live odds introduces severe **Look-Ahead Bias** and **Survivorship Bias**.
+
+### Minimum Data Model Required for Backtesting (V1.5 / V2 Prerequisite)
+To make genuine backtesting possible, the system will introduce:
+1. `match_settlements`: `(event_id, home_team, away_team, home_score, away_score, status, settled_at)`.
+2. `historical_candidate_snapshots`: `(snapshot_id, event_id, market_id, outcome_id, odds, implied_prob, recorded_at)`.
+3. `slip_settlement_history`: `(slip_id, leg_id, candidate_id, settled_outcome, profit_loss)`.
+
+---
+
+## 45. Risk Profile Realism: Configuration vs. Calibration
+
+* **V1 Reality (Configuration-Based):** Risk profiles will be implemented using **strictly bounded configuration rules** (Conservative: Prob $85\%-98\%$, Odds $1.05-1.25$; Balanced: Prob $75\%-90\%$, Odds $1.15-1.45$; Aggressive: Prob $60\%-80\%$, Odds $1.30-1.85$). This is 100% deterministic, testable, and immediately functional.
+* **V2 Target (Data-Calibrated):** Once 1,000+ settled match outcomes are accumulated, thresholds will be calibrated to minimize portfolio variance and maximize realized Sharpe ratio.
+
+---
+
+## 46. Expected Value Realism in V1
+
+$$\text{EV} = (P_{\text{model}} \times \text{Odds}) - 1.0$$
+* If $P_{\text{model}} = P_{\text{implied}} = \frac{1}{\text{Odds}}$, then $\text{EV} \equiv 0.0$.
+* If market overround $M > 0$ is removed via proportional de-vigging:
+  $$P_{\text{devigged}} = \frac{1 / \text{Odds}}{1.0 + M} \implies \text{EV} = (P_{\text{devigged}} \times \text{Odds}) - 1.0 = -\frac{M}{1.0 + M} < 0$$
+* **V1 Handling:** V1 will compute **De-vigged Theoretical Edge** or allow user consensus probabilities to express relative preference, while marking EV as a heuristic score component rather than absolute ground truth until ML model training in V2.
+
+---
+
+## 47. Correlation Defense Realism
+
+* **Implementable Now (V1):**
+  * Same-match exclusion (`event_id` uniqueness) $\implies$ **100% Achievable**.
+  * Single-team appearance across slip legs $\implies$ **100% Achievable**.
+  * Portfolio exposure caps (Max 40% legs from same league, Max 70% from same sport) $\implies$ **100% Achievable**.
+* **Deferred to V2:** Empirical cross-match covariance matrices (e.g. predicting correlation between two different Premier League matches based on weather or table standings).
+
+---
+
+## 48. Optimizer Complexity & Algorithm Comparison
+
+| Algorithm | Computational Complexity | Target Odds Convergence | Testability & Explainability | Recommendation |
+| :--- | :--- | :--- | :--- | :--- |
+| **Greedy Top-K Sorting** | $O(N \log N)$ | Poor (Ignores combined multiplier) | High | Too simplistic; misses target odds. |
+| **Constrained Greedy / Beam Search** | $O(B \cdot N \cdot K)$ | **Excellent** | **Very High** | **RECOMMENDED FOR V1** (Beam width 20-50). |
+| **Dynamic Programming Knapsack** | $O(N \cdot W)$ | Moderate (Requires discretized odds) | Medium | Complex odds discretization. |
+| **Integer Linear Programming (ILP)**| $O(2^N)$ worst case | Excellent | Low (Requires solver dependencies) | Over-engineered for 5-25 leg slips. |
+
+**V1 Decision:** Implement **Constrained Greedy with Bounded Beam Search (Beam Width $= 50$)**. It guarantees sub-millisecond execution, deterministic results, zero external solver dependencies, and full testability.
+
+---
+
+## 49. Over-Engineering Audit
+
+| Proposed Feature in Part I | Complexity Evaluation | V1 Classification | Rationale |
+| :--- | :--- | :---: | :--- |
+| **Bayesian Source Credibility ($K=25$)**| Requires graded trial history | **SIMPLIFY FOR V1** | Use sample-size saturation curve $1 - e^{-N/30}$ on occurrence counts in V1; deploy full Bayesian shrinkage in V1.5. |
+| **Brier Score Probability Calibration** | Requires settled outcome database | **DEFER TO V1.5** | Cannot compute $(P_i - y_i)^2$ without match final scores $y_i \in \{0, 1\}$. |
+| **Combinatorial Knapsack Optimizer** | Discretized multi-choice DP | **SIMPLIFY FOR V1** | Bounded beam search ($W=50$) provides identical accuracy with zero solver overhead. |
+| **Intra-Match Conflict Graph** | Event ID + Team deduping | **IMPLEMENT NOW** | Simple, robust, and completely prevents duplicate match legs. |
+| **Configurable Risk Profiles** | Boundary invariants & Kelly sizing | **IMPLEMENT NOW** | Deterministic mathematical rules requiring zero external infrastructure. |
+| **Machine-Readable Reason Codes** | JSON enum audit trail | **IMPLEMENT NOW** | Immediate transparency with zero external dependencies. |
+| **Historical Replay Simulator** | Requires historical time series | **DEFER TO V2** | Requires historical snapshot ingestion pipeline. |
+
+---
+
+## 50. V1 Minimum Viable Risk Engine Architecture
+
+```
+                                  INCOMING REQUEST
+             (Bet Builder Wizard / Channel Scanner / CLI / Code Editor)
+                                         │
+                                         ▼
+                             V1 CANDIDATE NORMALIZER
+         (Transforms MappedSportyBetSelection / ConsensusPrediction to BetCandidate)
+                                         │
+                                         ▼
+                            V1 HARD SAFETY FILTER
+     (Rejects: Kickoff < 120s, Odds < 1.01, Odds > Profile Max, Stale Data > 300s)
+                                         │
+                                         ▼
+                            V1 METRIC ENRICHMENT
+         (Calculates Implied Prob %, Fair De-vigged Prob, and Heuristic EV)
+                                         │
+                                         ▼
+                            V1 MULTI-FACTOR SCORER
+       (Scores Candidates: S = 0.35*f(P) + 0.25*g(EV) + 0.15*h(Src) + 0.15*m(Mkt) + 0.10*q(Fresh))
+                                         │
+                                         ▼
+                           V1 CORRELATION DEFENDER
+              (Eliminates duplicate event IDs & same-team appearances)
+                                         │
+                                         ▼
+                        V1 CONSTRAINED SLIP OPTIMIZER
+     (Beam Search W=50 converging on Target Odds without violating candidate quality)
+                                         │
+                                         ▼
+                             V1 EXPLAINABILITY & AUDIT
+       (Assembles SelectedBetLeg list, Kelly recommended stake, Bonus %, and Summary)
+                                         │
+                                         ▼
+                               BetConstructionResult
+```
+
+---
+
+## 51. V1 Data Contract Specification
+
+```
++-----------------------------------------------------------------------------------+
+|                             V1 BetCandidate Contract                              |
++-----------------------------------------------------------------------------------+
+| Field Name                  | Type             | V1 Status | Description          |
++-----------------------------+------------------+-----------+----------------------+
+| candidate_id                | str              | REQUIRED  | Unique Leg Identifier|
+| event_id                    | str              | REQUIRED  | Match Event ID       |
+| sport                       | str              | REQUIRED  | Sport Category       |
+| league                      | str              | REQUIRED  | Competition Name     |
+| home_team                   | str              | REQUIRED  | Home Participant     |
+| away_team                   | str              | REQUIRED  | Away Participant     |
+| kickoff_time                | Optional[datetime| REQUIRED  | Match Start Time     |
+| market_id                   | str              | REQUIRED  | Bookmaker Market ID  |
+| market_name                 | str              | REQUIRED  | Market Title         |
+| outcome_id                  | str              | REQUIRED  | Selection Outcome ID |
+| outcome_name                | str              | REQUIRED  | Selection Pick Name  |
+| decimal_odds                | float            | REQUIRED  | Current Decimal Odds |
+| specifier                   | Optional[str]    | OPTIONAL  | Market Specifier     |
+| bookmaker_implied_prob      | float            | REQUIRED  | (1.0 / Odds) * 100%  |
+| model_probability           | float            | REQUIRED  | Normalized Prob (0-1)|
+| expected_value              | float            | OPTIONAL  | (Prob * Odds) - 1.0  |
+| model_confidence            | float            | OPTIONAL  | Default: 1.0         |
+| source_type                 | SourceType       | REQUIRED  | SPORTYBET / TIPSTER  |
+| source_name                 | str              | REQUIRED  | Origin Source Name   |
+| source_sample_size          | int              | OPTIONAL  | Historical Post Count|
+| data_freshness_seconds      | float            | OPTIONAL  | Age of Odds Snapshot |
+| is_eligible                 | bool             | REQUIRED  | Hard Filter State    |
+| composite_score             | float            | REQUIRED  | Calculated Ranking S |
+| source_historical_accuracy  | float            | FUTURE    | Graded Win Rate (V1.5|
++-----------------------------------------------------------------------------------+
+```
+
+---
+
+## 52. Implementation Tiers Breakdown
+
+### Tier 1: V1 — IMPLEMENT NOW (Core Engine)
+* Pure domain contracts (`BetCandidate`, `BetConstructionRequest`, `BetConstructionResult`).
+* Hard safety constraint filtering (kickoff buffer, odds bounds, freshness).
+* Bookmaker-implied probability and market overround de-vigging.
+* Multi-factor candidate scoring model.
+* Configuration-based risk profiles (Conservative, Balanced, Aggressive, Very Aggressive, Custom) with Fractional Kelly sizing.
+* Intra-match correlation defense (event ID and team deduplication).
+* Constrained greedy beam search slip optimizer.
+* Machine-readable explainability and structured reason codes.
+* Safe fallback degradation without data fabrication.
+
+### Tier 2: V1.5 — PREREQUISITES (Persistence & Learning Feedback)
+* Relational child table `slip_legs` in SQLite to store individual slip selections.
+* `match_settlements` table in SQLite.
+* Automated background settlement scraper harvesting finished scores (`Eps="FT"`).
+* Tipster win/loss grading and true empirical accuracy calculation.
+* Full Bayesian shrinkage model ($K=25$) on verified prediction histories.
+
+### Tier 3: V2 — FUTURE INFRASTRUCTURE (ML & Backtesting)
+* Statistical machine learning model (Logistic Regression / XGBoost) trained on historical match features.
+* Calibrated true model probabilities (Brier score minimization).
+* Historical point-in-time snapshot database (odds and feature time series).
+* Deterministic backtesting and replay simulation harness.
+* Cross-match empirical covariance matrices.
+
+---
+
+## 53. Explicit "DO NOT IMPLEMENT YET IN V1" Registry
+
+To prevent over-engineering and ungrounded implementations, the following features **MUST NOT BE IMPLEMENTED IN V1**:
+1. 🚫 **DO NOT** implement statistical ML model training or pretend that `analyzer.py` is an AI neural network.
+2. 🚫 **DO NOT** implement Brier score calibration without a settled match outcome database.
+3. 🚫 **DO NOT** implement complex Integer Linear Programming (ILP) solvers requiring external C/C++ libraries.
+4. 🚫 **DO NOT** simulate fake historical backtests on live odds snapshots.
+5. 🚫 **DO NOT** claim tipster occurrence frequency in SQLite is equivalent to prediction accuracy.
+6. 🚫 **DO NOT** hardcode synthetic odds when live SportyBet catalog prices are unavailable.
+
+---
+
+## 54. Approved Next Implementation Step
+
+**Execute Tier 1 (V1 Domain Package):**
+Implement the standalone domain package under `engine/` containing pure data contracts, hard constraint filters, candidate scoring, configuration risk profiles, correlation defense, and bounded beam search slip optimizer, fully backed by 100% unit test coverage in `tests/`, without modifying Telegram UI handlers or database schemas until domain tests pass cleanly.
+
