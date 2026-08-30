@@ -142,7 +142,7 @@ class DatabaseService:
                 ),
             )
             conn.commit()
-            return cursor.lastrowid
+            return int(cursor.lastrowid) if cursor.lastrowid is not None else 0
 
     @classmethod
     def save_conversion(
@@ -164,7 +164,7 @@ class DatabaseService:
                 (user_id, source_code, source_bookmaker, sportybet_code, provider_used),
             )
             conn.commit()
-            return cursor.lastrowid
+            return int(cursor.lastrowid) if cursor.lastrowid is not None else 0
 
     @classmethod
     def get_user_history(cls, user_id: int, limit: int = 5) -> List[Dict]:
@@ -258,7 +258,7 @@ class DatabaseService:
                 (event_id, home_team, away_team, home_score, away_score, status),
             )
             conn.commit()
-            return cursor.lastrowid
+            return int(cursor.lastrowid) if cursor.lastrowid is not None else 0
 
     @classmethod
     def get_settled_match(cls, event_id: str) -> Optional[Dict]:

@@ -5,6 +5,7 @@
 This document provides a comprehensive architectural baseline, module dependency analysis, security audit, and refactoring roadmap for **Telegram-bot** ([Don-Walesky/Telegram-bot](https://github.com/Don-Walesky/Telegram-bot)).
 
 ### Key System Attributes
+
 - **Primary Tech Stack:** Python 3.11 / 3.14, `python-telegram-bot` v22.8 (async framework), `httpx` 0.28.1, `python-dotenv`, SQLite 3.
 - **Core Purpose:** Automated Telegram sports betting intelligence assistant providing LiveScore multi-sport fixture discovery (Football, Basketball, Tennis, Ice Hockey), SportyBet live catalog fuzzy matching, bookmaker-implied probability calculation, high-safety betslip construction, booking code conversion (Bet9ja, 1xBet, 22Bet to SportyBet), and tipster channel market pattern learning.
 - **Current Operational Status:** Fully functional baseline. **34 / 34 unit tests pass (`OK`)** with 100% clean test execution. Deployment-ready via Docker, Docker Compose, and Heroku / Railway worker (`Procfile`).
@@ -16,7 +17,7 @@ This document provides a comprehensive architectural baseline, module dependency
 
 The system follows an implicit 4-layer structure, heavily orchestrated by `bot.py`.
 
-```
+```text
                   +-------------------------------------------------+
                   |          Telegram User Interface Layer          |
                   |     (Telegram App / Inline Keyboards / Bot)     |
@@ -80,7 +81,7 @@ The system follows an implicit 4-layer structure, heavily orchestrated by `bot.p
 
 User interaction flows are powered by `python-telegram-bot` async handlers:
 
-```
+```text
 [User /start Command]
         │
         ▼
@@ -98,6 +99,7 @@ User interaction flows are powered by `python-telegram-bot` async handlers:
 ```
 
 ### Async Flow Safety
+
 Long-running scan pipelines (`BettingService.execute_scan_pipeline`, `CustomSlipBuilder.generate_custom_slip`, `ChannelSlipSiever.scan_and_sieve_channel_slips`) are wrapped in `await asyncio.to_thread(...)` to ensure the Telegram event loop remains non-blocking.
 
 ---
@@ -106,7 +108,7 @@ Long-running scan pipelines (`BettingService.execute_scan_pipeline`, `CustomSlip
 
 The end-to-end data flow operates in 8 distinct stages:
 
-```
+```text
 +-----------------------------------------------------------------------------------+
 | Stage 1: Fixture Discovery                                                        |
 | Ingests unstarted matches from LiveScore CDN (date_param=YYYYMMDD).               |
@@ -169,6 +171,7 @@ The end-to-end data flow operates in 8 distinct stages:
 The system uses SQLite 3 located at [`db/bot_history.db`](file:///c:/Users/WALE/TELEGRAM-bot/db/bot_history.db).
 
 ### Database Schema
+
 ```sql
 -- 1. Generated Bet Slips History
 CREATE TABLE IF NOT EXISTS generated_slips (
@@ -215,6 +218,7 @@ CREATE TABLE IF NOT EXISTS tipster_market_learnings (
 ```
 
 ### Safety Features
+
 - **Auto-Initialization:** `DatabaseService._get_connection()` runs schema auto-creation on the first connection call, ensuring isolated test environments succeed seamlessly.
 - **Automated Backup Utility:** [`scripts/backup_db.py`](file:///c:/Users/WALE/TELEGRAM-bot/scripts/backup_db.py) generates timestamped backups in `db/backups/`.
 
@@ -224,7 +228,7 @@ CREATE TABLE IF NOT EXISTS tipster_market_learnings (
 
 The application implements a dual learning system:
 
-```
+```text
                           ┌───────────────────────────┐
                           │   Learning Engine System  │
                           └─────────────┬─────────────┘
@@ -241,7 +245,9 @@ The application implements a dual learning system:
 ```
 
 ### Machine Learning & Data Requirements
+
 Currently, the system is **rule-based and statistical (odds-implied probability)**. To transition to predictive Machine Learning (e.g., XGBoost, Logistic Regression, or Brier-calibrated probabilities), the system will eventually require:
+
 1. **Historical Match Results Dataset:** Storing actual final scores, halftime scores, and match statistics.
 2. **Settlement Tracking Table:** Recording win/loss outcomes of generated slips against actual match results.
 3. **Closing Odds Timeline:** Ingesting opening vs. closing bookmaker odds movements.
@@ -299,7 +305,9 @@ Currently, the system is **rule-based and statistical (odds-implied probability)
 ## 13. Testing Coverage
 
 ### Executed Baseline Test Results
+
 Command executed: `python -m unittest discover -s tests -p "test_*.py"`
+
 - **Total Tests:** 34
 - **Passed:** 34
 - **Failed:** 0
@@ -307,6 +315,7 @@ Command executed: `python -m unittest discover -s tests -p "test_*.py"`
 - **Test Suite Status:** **`OK` (Clean Run)**
 
 ### Test Coverage Analysis
+
 - **Covered:** `test_analyzer`, `test_builder`, `test_channel_siever`, `test_code_editor`, `test_converter`, `test_database`, `test_learning_engine`, `test_multisport`, `test_real_mapping`, `test_sportybet`, `test_tipster_learning`.
 - **Not Covered by Automated Unit Tests:** Async Telegram UI handlers in `bot.py` (require Telegram `Update` test harness or mock context).
 
@@ -323,7 +332,7 @@ Command executed: `python -m unittest discover -s tests -p "test_*.py"`
 
 The recommended modular target architecture for future phases:
 
-```
+```text
 TELEGRAM-BOT REPOSITORY
 │
 ├── bot.py                      # Main entrypoint & Application lifecycle
@@ -377,9 +386,11 @@ TELEGRAM-BOT REPOSITORY
 ## 17. Recommended Next Change
 
 ### Single Highest-Value, Lowest-Risk Next Change
+
 **Clean up root-level duplicate test files and obsolete `.pyc` artifacts, ensuring `tests/` remains the single canonical test suite directory.**
 
 ### Exact Files Affected
+
 1. `test_analyzer.py` (Delete root duplicate file)
 2. `test_builder.py` (Delete root duplicate file)
 3. `test_code_editor.py` (Delete root duplicate file)

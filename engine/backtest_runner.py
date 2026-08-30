@@ -168,7 +168,7 @@ class BacktestRunner:
                         home_score=settle["home_score"],
                         away_score=settle["away_score"],
                     )
-                    won = bool(won_res) if won_res is not None else False
+                    won = won_res if won_res is not None else False
 
                 if won:
                     won_legs += 1
