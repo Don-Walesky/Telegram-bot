@@ -12,6 +12,13 @@ from livescore_client import LiveScoreClient, DiscoveredFixture
 from sportybet_catalog import SportyBetCatalogService, MappedSportyBetSelection
 from probability_filter import ImpliedProbabilityFilter, FilteredPick
 from sportybet_booking import SportyBetBookingClient, BookingSlipResponse
+from engine import (
+    BetCandidate,
+    BetConstructionRequest,
+    RiskProfile,
+    WorkflowType,
+)
+from engine.bet_construction_engine import BetConstructionEngine
 
 logger = logging.getLogger(__name__)
 
@@ -80,15 +87,69 @@ class BettingService:
                 message="SportyBet catalog empty or updating",
             )
 
-        # 3. Probability Filter (Config-driven bounds)
-        filtered_picks: List[FilteredPick] = ImpliedProbabilityFilter.filter_selections(
-            all_selections,
-            min_prob=config.betting.min_implied_probability,
-            max_prob=config.betting.max_implied_probability,
+        # 3. Risk / Bet Construction Engine Optimization
+        candidates: List[BetCandidate] = [
+            BetCandidate(
+                candidate_id=f"{sel.event_id}:{sel.market_id}:{sel.outcome_id}",
+                event_id=sel.event_id,
+                sport=sel.sport,
+                league=sel.league,
+                home_team=sel.home_team,
+                away_team=sel.away_team,
+                kickoff_time=sel.kickoff_time,
+                market_id=sel.market_id,
+                market_name=sel.market_name,
+                outcome_id=sel.outcome_id,
+                outcome_name=sel.outcome_name,
+                decimal_odds=sel.odds,
+                specifier=sel.specifier,
+            )
+            for sel in all_selections
+        ]
+
+        req = BetConstructionRequest(
+            workflow=WorkflowType.STANDARD_SCAN,
+            risk_profile=RiskProfile.BALANCED,
+            desired_game_count=config.betting.default_scan_legs,
+            min_game_count=1,
+            min_selection_probability=config.betting.min_implied_probability,
+            target_date=target_date,
+            target_sports=[sport],
+            candidates=candidates,
         )
 
-        # Limit to configured scan leg count
-        slip_picks = filtered_picks[:config.betting.default_scan_legs]
+        engine_res = BetConstructionEngine.build_bet_slip(req)
+
+        if engine_res.selected_candidates:
+            slip_picks: List[FilteredPick] = [
+                FilteredPick(
+                    selection=MappedSportyBetSelection(
+                        event_id=leg.event_id,
+                        home_team=leg.fixture.split(" vs ")[0] if " vs " in leg.fixture else leg.fixture,
+                        away_team=leg.fixture.split(" vs ")[1] if " vs " in leg.fixture else "",
+                        league=leg.league,
+                        sport=leg.sport,
+                        kickoff_time=leg.kickoff_time,
+                        market_id=leg.market_id,
+                        market_name=leg.market_name,
+                        outcome_id=leg.outcome_id,
+                        outcome_name=leg.outcome_name,
+                        odds=leg.odds,
+                        specifier=leg.specifier,
+                    ),
+                    odds=leg.odds,
+                    implied_probability=leg.implied_probability_pct,
+                )
+                for leg in engine_res.selected_candidates
+            ]
+        else:
+            # Fallback filter if engine found 0 items under strict invariants
+            filtered_picks: List[FilteredPick] = ImpliedProbabilityFilter.filter_selections(
+                all_selections,
+                min_prob=config.betting.min_implied_probability,
+                max_prob=config.betting.max_implied_probability,
+            )
+            slip_picks = filtered_picks[:config.betting.default_scan_legs]
 
         # 4. Generate Official SportyBet Booking Code or Structured Fallback
         slip_res = SportyBetBookingClient.generate_booking_code(

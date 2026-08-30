@@ -84,6 +84,20 @@ class DatabaseService:
             )
             """
         )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS match_settlements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_id TEXT UNIQUE,
+                home_team TEXT,
+                away_team TEXT,
+                home_score INTEGER,
+                away_score INTEGER,
+                status TEXT DEFAULT 'FT',
+                settled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
         conn.commit()
 
     @classmethod
@@ -204,8 +218,6 @@ class DatabaseService:
                 """,
                 (market_name, sport),
             )
-            conn.commit()
-
     @classmethod
     def get_top_tipster_markets(cls, limit: int = 5) -> List[Dict]:
         with cls._get_connection() as conn:
@@ -216,6 +228,52 @@ class DatabaseService:
                 ORDER BY occurrence_count DESC, last_seen DESC
                 LIMIT ?
                 """,
+                (limit,),
+            )
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+
+    @classmethod
+    def record_match_settlement(
+        cls,
+        event_id: str,
+        home_team: str,
+        away_team: str,
+        home_score: int,
+        away_score: int,
+        status: str = "FT",
+    ) -> int:
+        with cls._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO match_settlements (event_id, home_team, away_team, home_score, away_score, status, settled_at)
+                VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(event_id) DO UPDATE SET
+                    home_score = excluded.home_score,
+                    away_score = excluded.away_score,
+                    status = excluded.status,
+                    settled_at = CURRENT_TIMESTAMP
+                """,
+                (event_id, home_team, away_team, home_score, away_score, status),
+            )
+            conn.commit()
+            return cursor.lastrowid
+
+    @classmethod
+    def get_settled_match(cls, event_id: str) -> Optional[Dict]:
+        with cls._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM match_settlements WHERE event_id = ?", (event_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
+    @classmethod
+    def get_recent_settlements(cls, limit: int = 50) -> List[Dict]:
+        with cls._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM match_settlements ORDER BY settled_at DESC LIMIT ?",
                 (limit,),
             )
             rows = cursor.fetchall()

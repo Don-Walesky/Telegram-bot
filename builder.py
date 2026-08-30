@@ -14,6 +14,14 @@ from calculator import BetCalculator
 from sportybet import SportyBetService
 from config import config
 
+from engine import (
+    BetCandidate,
+    BetConstructionRequest,
+    RiskProfile,
+    WorkflowType,
+)
+from engine.bet_construction_engine import BetConstructionEngine
+
 logger = logging.getLogger(__name__)
 
 
@@ -45,30 +53,84 @@ class CustomSlipBuilder:
         """
         Builds a custom bet slip up to 25 games containing ONLY upcoming LiveScore.com matches.
         """
-        candidates = PredictionAnalyzer.analyze_consensus_predictions(
+        raw_candidates = PredictionAnalyzer.analyze_consensus_predictions(
             min_probability=min_probability,
             match_date=match_date,
             sport=sport,
         )
 
         now = datetime.now()
-
-        # Double check candidates are strictly in the future
-        unstarted_candidates = [c for c in candidates if (not c.kickoff_time or c.kickoff_time > now)]
+        unstarted_candidates = [c for c in raw_candidates if (not c.kickoff_time or c.kickoff_time > now)]
 
         if not unstarted_candidates:
-            # Fallback if no matches met threshold: pull all upcoming unstarted
             unstarted_candidates = PredictionAnalyzer.analyze_consensus_predictions(
                 min_probability=config.betting.min_implied_probability,
                 match_date=match_date,
                 sport=sport,
             )
 
-        # Select up to requested game_count from unstarted candidates
-        selected = unstarted_candidates[:game_count]
+        # Map to engine domain candidates
+        engine_candidates = [
+            BetCandidate(
+                candidate_id=f"{c.teams}:{c.safe_market}:{c.odds}",
+                event_id=f"ev_{hash(c.teams)}",
+                sport=c.sport,
+                league=c.league,
+                home_team=c.home_team,
+                away_team=c.away_team,
+                kickoff_time=c.kickoff_time,
+                market_id="custom_market",
+                market_name=c.safe_market,
+                outcome_id="custom_outcome",
+                outcome_name=c.original_pick or "Safe Pick",
+                decimal_odds=c.odds,
+                model_probability=c.consensus_probability / 100.0 if c.consensus_probability > 0 else (1.0 / c.odds),
+            )
+            for c in unstarted_candidates
+        ]
 
-        # Select up to requested game_count from unstarted candidates
-        selected = unstarted_candidates[:game_count]
+        # Determine risk profile from requested probability
+        if min_probability >= 85.0:
+            profile = RiskProfile.CONSERVATIVE
+        elif min_probability >= 70.0:
+            profile = RiskProfile.BALANCED
+        else:
+            profile = RiskProfile.AGGRESSIVE
+
+        req = BetConstructionRequest(
+            workflow=WorkflowType.BET_BUILDER,
+            risk_profile=profile,
+            target_combined_odds=target_odds,
+            desired_game_count=game_count,
+            min_game_count=1,
+            min_selection_probability=min_probability,
+            target_date=match_date,
+            target_sports=[sport],
+            stake_amount=stake,
+            candidates=engine_candidates,
+        )
+
+        engine_res = BetConstructionEngine.build_bet_slip(req)
+
+        if engine_res.selected_candidates:
+            selected = [
+                ConsensusPrediction(
+                    home_team=leg.fixture.split(" vs ")[0] if " vs " in leg.fixture else leg.fixture,
+                    away_team=leg.fixture.split(" vs ")[1] if " vs " in leg.fixture else "",
+                    league=leg.league,
+                    sport=leg.sport,
+                    original_pick=leg.outcome_name,
+                    safe_market=leg.market_name,
+                    odds=leg.odds,
+                    consensus_probability=leg.model_probability_pct,
+                    agreed_sources=["Consensus Engine"],
+                    match_date=match_date,
+                    kickoff_time=leg.kickoff_time,
+                )
+                for leg in engine_res.selected_candidates
+            ]
+        else:
+            selected = unstarted_candidates[:game_count]
 
         sportybet_direct_url = "https://www.sportybet.com/ng/m/sports/football/"
 
