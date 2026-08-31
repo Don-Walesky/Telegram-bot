@@ -1,9 +1,9 @@
 """
 Models Package: Pure Domain Contracts for the Telegram Betting Bot.
-Phase 1: Zero framework/Telegram dependencies, strictly typed data structures.
+Phase 1/7B: Zero framework/Telegram dependencies, strictly typed data structures.
 """
 
-from models.bet_candidate import BetCandidate, SourceType
+from models.bet_candidate import BetCandidate, ProbabilitySource, SourceType
 from models.engine_contracts import (
     BetConstructionRequest,
     BetConstructionResult,
@@ -17,6 +17,7 @@ from models.engine_contracts import (
 
 __all__ = [
     "BetCandidate",
+    "ProbabilitySource",
     "SourceType",
     "BetConstructionRequest",
     "BetConstructionResult",

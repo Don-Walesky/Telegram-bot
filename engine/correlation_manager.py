@@ -1,19 +1,22 @@
 """
 Correlation Defense & Exposure Management Module
-Enforces hard intra-match single selection rules (conflict graph) and evaluates
+Enforces deterministic intra-match single selection rules (conflict graph) and evaluates
 portfolio league/sport exposure penalties to preserve event independence.
+
+NOTE: The rules in this module enforce DETERMINISTIC INTRA-MATCH CONFLICTS and concentration bounds.
+Empirical statistical covariance modeling across separate fixtures is deferred to future infrastructure (V2).
 """
 
 from collections import Counter
 from typing import List, Set, Tuple
-from engine.contracts import BetCandidate
+from models.bet_candidate import BetCandidate
 
 
 class CorrelationManager:
     @staticmethod
     def are_conflicting(cand_a: BetCandidate, cand_b: BetCandidate) -> bool:
         """
-        Determines if two candidate selections conflict (i.e. share the same event or teams).
+        Determines if two candidate selections conflict deterministically (i.e. share the same event or teams).
         """
         if cand_a.candidate_id == cand_b.candidate_id:
             return True

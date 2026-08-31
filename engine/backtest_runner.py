@@ -1,11 +1,14 @@
 """
 Historical Backtesting & Calibration Engine Module
-Simulates historical bet execution against actual settled match scores, computing
-Brier score calibration, win rates, simulated ROI, and maximum drawdown with zero lookahead bias.
+Provides deterministic outcome evaluation rules, Brier score loss calculations, and simulated ROI metrics.
+
+CRITICAL NOTICE: NOT VALIDATED FOR EMPIRICAL HISTORICAL BACKTESTING IN V1.
+This module provides rule evaluation logic. Genuine empirical backtesting requires historical time-series
+catalog odds snapshots and point-in-time prediction records (deferred to V2).
 """
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 
 @dataclass

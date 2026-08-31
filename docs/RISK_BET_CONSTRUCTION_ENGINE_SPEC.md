@@ -1164,3 +1164,38 @@ To prevent over-engineering and ungrounded implementations, the following featur
 **Execute Tier 1 (V1 Domain Package):**
 Implement the standalone domain package under `engine/` containing pure data contracts, hard constraint filters, candidate scoring, configuration risk profiles, correlation defense, and bounded beam search slip optimizer, fully backed by 100% unit test coverage in `tests/`, without modifying Telegram UI handlers or database schemas until domain tests pass cleanly.
 
+---
+
+## 55. Current Implementation Limitations & Semantic Hardening
+
+To ensure complete engineering transparency and prevent misleading claims regarding system capabilities, the following implementation realities and semantic boundaries are strictly established:
+
+1. **Model Probability Availability:**
+   - Predictive machine learning models are **NOT YET IMPLEMENTED** in V1.
+   - The field `BetCandidate.model_probability` is strictly nullable (`None`) in V1 unless produced by a future genuine ML model.
+   - The engine explicitly introduces `ProbabilitySource` enum (`BOOKMAKER_IMPLIED`, `CONSENSUS_HEURISTIC`, `PREDICTIVE_MODEL`, `UNKNOWN`) to prevent conflating implied odds or static tables with predictive AI.
+
+2. **Expected Value (EV) Semantics:**
+   - When only bookmaker odds are available, Expected Value is **NOT FABRICATED**; it is marked as `0.0` (market equilibrium) with `is_heuristic = True`.
+   - When consensus heuristic probabilities are available, EV is explicitly labeled as `Heuristic Value Edge`.
+   - True statistical positive EV requires genuine calibrated predictive probabilities (V2).
+
+3. **Source Reliability Status:**
+   - `SourceReliabilityModel` provides a mathematically sound Bayesian shrinkage model ($K=25$).
+   - In V1, because settled outcome tracking is not yet active, tipster reliability is treated as heuristic metadata until historical settled trials are recorded (V1.5).
+
+4. **Historical Backtesting Engine:**
+   - `BacktestRunner` serves as a deterministic rule evaluation harness for settlement logic and Brier loss calculations.
+   - It is **NOT VALIDATED FOR EMPIRICAL HISTORICAL BACKTESTING** until continuous point-in-time time-series snapshots and settled score databases are populated.
+
+5. **Risk Profile Thresholds:**
+   - Probability thresholds and Kelly staking fractions in `RiskProfileManager` are **ENGINEERING DEFAULTS** derived from betting domain heuristics, pending empirical calibration against settled match outcomes.
+
+6. **Correlation Defense:**
+   - `CorrelationManager` enforces deterministic intra-match single selection rules (conflict graph) and basic portfolio concentration bounds.
+   - Cross-fixture statistical covariance modeling is deferred to future infrastructure (V2).
+
+7. **Learning Engine Reality:**
+   - `StrategyLearningEngine` and `TipsterMarketLearner` currently track market posting frequency and regex patterns, **NOT PREDICTIVE ACCURACY**. Market frequency is not treated as empirical win rate.
+
+

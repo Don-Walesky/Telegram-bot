@@ -2,10 +2,14 @@
 Bayesian Source Reliability & Credibility Model Module
 Calculates sample-size regressed credibility scores and applies exponential recency decay
 to ensure small-sample tipsters or channels do not artificially outrank proven predictors.
+
+NOTE: This module defines the mathematical formulation for Bayesian shrinkage.
+In V1, because settled outcome tracking is not yet active, tipster reliability is treated as
+heuristic metadata until historical settled trials are recorded (V1.5).
 """
 
 import math
-from typing import Dict, Optional
+from typing import Optional
 
 
 class SourceReliabilityModel:

@@ -8,8 +8,8 @@ import logging
 from typing import List, Optional
 
 from calculator import BetCalculator
-from engine.contracts import (
-    BetCandidate,
+from models.bet_candidate import BetCandidate, ProbabilitySource
+from models.engine_contracts import (
     BetConstructionRequest,
     BetConstructionResult,
     ConstructionStatusCode,
@@ -33,7 +33,7 @@ class BetConstructionEngine:
         """
         Executes the complete end-to-end bet construction pipeline:
         1. Ingests and gates candidates through HardConstraintFilter.
-        2. Enriches eligible candidates with expected value & implied probabilities.
+        2. Enriches eligible candidates with expected value & probability provenance.
         3. Enforces RiskProfile invariants.
         4. Computes multi-factor composite scores and ranks candidates.
         5. Optimizes slip combination via combinatorial beam search.
@@ -69,11 +69,10 @@ class BetConstructionEngine:
             if is_valid:
                 profile_eligible.append(cand)
             else:
-                rejected.append(
-                    HardConstraintFilter.evaluate_candidates([cand], request)[1][0]
-                    if HardConstraintFilter.evaluate_candidates([cand], request)[1]
-                    else None
-                )
+                # Append rejection record
+                rejected_record = HardConstraintFilter.evaluate_candidates([cand], request)[1]
+                if rejected_record:
+                    rejected.append(rejected_record[0])
 
         # Clean any None rejection records
         rejected = [r for r in rejected if r is not None]
@@ -110,13 +109,29 @@ class BetConstructionEngine:
 
         for cand in selected_candidates:
             total_odds *= cand.decimal_odds
-            cand_prob = cand.model_probability if cand.model_probability > 0 else (cand.bookmaker_implied_prob / 100.0)
-            joint_prob *= cand_prob
+            cand_prob_pct = cand.effective_probability
+            cand_prob_dec = cand_prob_pct / 100.0
+            joint_prob *= cand_prob_dec
 
-            # Build explainability reasons
+            # Build clear, provenance-aware explainability reasons
+            prob_label = (
+                f"Model Probability: {cand_prob_pct:.1f}%"
+                if cand.probability_source == ProbabilitySource.PREDICTIVE_MODEL
+                else f"Consensus Heuristic Probability: {cand_prob_pct:.1f}%"
+                if cand.probability_source == ProbabilitySource.CONSENSUS_HEURISTIC
+                else f"Bookmaker Implied Probability: {cand_prob_pct:.1f}%"
+            )
+
+            ev_val = cand.expected_value if cand.expected_value is not None else 0.0
+            ev_label = (
+                f"Heuristic Value Edge: {ev_val:+.1%}"
+                if cand.expected_value_is_heuristic
+                else f"Model Expected Value: {ev_val:+.1%}"
+            )
+
             reasons = [
-                f"Model Probability: {cand_prob * 100.0:.1f}% satisfies {request.risk_profile.value} threshold",
-                f"Expected Value: {cand.expected_value:+.1%}",
+                f"{prob_label} satisfies {request.risk_profile.value} threshold",
+                ev_label,
                 f"Market: {cand.market_name} (Safety Rating: {CandidateScorer.get_market_reliability(cand.market_name):.2f})",
             ]
 
@@ -131,8 +146,12 @@ class BetConstructionEngine:
                     outcome_name=cand.outcome_name,
                     odds=cand.decimal_odds,
                     implied_probability_pct=cand.bookmaker_implied_prob,
-                    model_probability_pct=round(cand_prob * 100.0, 1),
-                    expected_value_pct=round(cand.expected_value * 100.0, 1),
+                    probability_source=cand.probability_source,
+                    effective_probability_pct=cand_prob_pct,
+                    model_probability_pct=round(cand.model_probability * 100.0, 1) if cand.model_probability else None,
+                    consensus_probability_pct=cand.consensus_probability,
+                    expected_value_pct=round(ev_val * 100.0, 1),
+                    is_heuristic_ev=cand.expected_value_is_heuristic,
                     composite_score=cand.composite_score,
                     acceptance_reasons=reasons,
                     specifier=cand.specifier,
@@ -176,6 +195,7 @@ class BetConstructionEngine:
             total_combined_odds=total_odds,
             estimated_joint_probability=joint_prob_pct,
             estimated_slip_ev=slip_ev_pct,
+            is_heuristic_ev=True,
             recommended_stake=recommended_stake,
             sportybet_bonus_pct=bonus_pct,
             estimated_total_payout=calc_res["total_payout"],
@@ -212,6 +232,7 @@ class BetConstructionEngine:
             total_combined_odds=1.0,
             estimated_joint_probability=0.0,
             estimated_slip_ev=0.0,
+            is_heuristic_ev=True,
             recommended_stake=0.0,
             sportybet_bonus_pct=0.0,
             estimated_total_payout=0.0,
@@ -249,11 +270,16 @@ class BetConstructionEngine:
         for idx, leg in enumerate(selected_legs, 1):
             time_str = leg.kickoff_time.strftime("%H:%M WAT") if leg.kickoff_time else "Upcoming"
             sport_icon = "⚽" if leg.sport == "Football" else "🏀" if leg.sport == "Basketball" else "🎾" if leg.sport == "Tennis" else "🏒" if leg.sport == "Ice Hockey" else "🏆"
+            source_tag = (
+                "Consensus" if leg.probability_source == ProbabilitySource.CONSENSUS_HEURISTIC
+                else "Model" if leg.probability_source == ProbabilitySource.PREDICTIVE_MODEL
+                else "Implied"
+            )
             lines.append(
                 f"{idx}. {sport_icon} *{leg.fixture}* (_{leg.league}_)\n"
                 f"   ⏰ Kickoff: `{time_str}` 🟢\n"
                 f"   🎯 Market: *{leg.market_name}* ({leg.outcome_name}) @ `{leg.odds:.2f}`\n"
-                f"   🛡️ *Model Prob:* `{leg.model_probability_pct}%` | *Implied:* `{leg.implied_probability_pct}%`\n"
+                f"   🛡️ *Win Prob ({source_tag}):* `{leg.effective_probability_pct:.1f}%` | *Implied:* `{leg.implied_probability_pct:.1f}%`\n"
             )
 
         lines.extend([

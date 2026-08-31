@@ -1,15 +1,15 @@
 """
 Hard Safety Constraint Filter Module
 Evaluates candidate betting selections against binary pass/fail safety invariants
-prior to scoring and combinatorial optimization.
+prior to scoring and combinatorial optimization. Zero bypass allowed during fallback.
 """
 
 import logging
 from datetime import datetime, timedelta
 from typing import List, Tuple
 
-from engine.contracts import (
-    BetCandidate,
+from models.bet_candidate import BetCandidate
+from models.engine_contracts import (
     BetConstructionRequest,
     RejectedCandidate,
     RejectionCategory,
@@ -103,13 +103,9 @@ class HardConstraintFilter:
                 )
                 continue
 
-            # 4. Minimum Probability Threshold Check
+            # 4. Minimum Probability Threshold Check (using effective_probability)
             min_prob_pct = request.min_selection_probability
-            cand_prob_pct = (
-                candidate.model_probability * 100.0
-                if candidate.model_probability > 0
-                else candidate.bookmaker_implied_prob
-            )
+            cand_prob_pct = candidate.effective_probability
 
             if cand_prob_pct < min_prob_pct:
                 rejected.append(
@@ -170,7 +166,7 @@ class HardConstraintFilter:
 
     @staticmethod
     def _get_odds_bounds_for_profile(profile: RiskProfile) -> Tuple[float, float]:
-        """Returns baseline decimal odds bounds for each risk profile."""
+        """Returns baseline decimal odds bounds for each risk profile (Engineering Defaults)."""
         if profile == RiskProfile.CONSERVATIVE:
             return 1.05, 1.30
         elif profile == RiskProfile.BALANCED:

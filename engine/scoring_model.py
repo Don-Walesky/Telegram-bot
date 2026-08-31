@@ -1,12 +1,13 @@
 """
 Candidate Scoring Model Module
-Computes a normalized Composite Utility Score S in [0.0, 1.0] across model probability,
-expected value, source reliability, market safety, data freshness, uncertainty, and correlation.
+Computes a normalized Composite Utility Score S in [0.0, 1.0] across effective probability,
+expected value, source reliability, market safety, data freshness, and uncertainty.
 """
 
 import math
 from typing import Dict, List
-from engine.contracts import BetCandidate, BetConstructionRequest
+from models.bet_candidate import BetCandidate, ProbabilitySource
+from models.engine_contracts import BetConstructionRequest
 
 
 class CandidateScorer:
@@ -17,7 +18,7 @@ class CandidateScorer:
     DEFAULT_WEIGHT_MARKET = 0.15
     DEFAULT_WEIGHT_FRESHNESS = 0.10
 
-    # Market reliability rating lookup
+    # Market reliability rating lookup (Heuristic safety ratings)
     MARKET_RELIABILITY_MAP: Dict[str, float] = {
         "double chance": 1.00,
         "double chance (1x)": 1.00,
@@ -40,23 +41,22 @@ class CandidateScorer:
     }
 
     @classmethod
-    def normalize_probability(cls, prob: float, min_prob: float = 0.50) -> float:
-        """Normalizes model probability into [0.0, 1.0] range."""
-        if prob <= min_prob:
+    def normalize_probability(cls, prob_decimal: float, min_prob: float = 0.50) -> float:
+        """Normalizes probability decimal [0.0, 1.0] into [0.0, 1.0] score component."""
+        if prob_decimal <= min_prob:
             return 0.0
-        if prob >= 1.0:
+        if prob_decimal >= 1.0:
             return 1.0
-        return (prob - min_prob) / (1.0 - min_prob)
+        return (prob_decimal - min_prob) / (1.0 - min_prob)
 
     @classmethod
     def normalize_expected_value(cls, ev: float) -> float:
         """
         Normalizes Expected Value using a logistic sigmoid centered at EV = 0.0.
-        EV = 0.00 -> 0.50
-        EV = +0.10 -> 0.82
-        EV = -0.10 -> 0.18
+        EV = 0.00 -> 0.50 (Neutral)
+        EV = +0.10 -> 0.82 (High Value)
+        EV = -0.10 -> 0.18 (Low Value)
         """
-        # Clamp to avoid overflow
         clamped_ev = max(-1.0, min(1.0, ev))
         return 1.0 / (1.0 + math.exp(-15.0 * clamped_ev))
 
@@ -72,7 +72,7 @@ class CandidateScorer:
 
     @classmethod
     def get_market_reliability(cls, market_name: str) -> float:
-        """Returns baseline reliability score for a given market description."""
+        """Returns baseline heuristic reliability score for a given market description."""
         clean_name = market_name.strip().lower()
         return cls.MARKET_RELIABILITY_MAP.get(clean_name, 0.70)
 
@@ -89,12 +89,19 @@ class CandidateScorer:
     def score_candidate(cls, candidate: BetCandidate, min_prob_threshold: float = 0.50) -> float:
         """
         Calculates composite utility score S in [0.0, 1.0] for an individual candidate.
+        Uses candidate.effective_probability to handle all probability provenances cleanly.
         """
-        f_prob = cls.normalize_probability(candidate.model_probability, min_prob=min_prob_threshold)
-        g_ev = cls.normalize_expected_value(candidate.expected_value)
-        h_source = cls.normalize_source_reliability(
-            candidate.source_historical_accuracy, candidate.source_sample_size
-        )
+        eff_prob_dec = candidate.effective_probability / 100.0
+        f_prob = cls.normalize_probability(eff_prob_dec, min_prob=min_prob_threshold)
+
+        ev_val = candidate.expected_value if candidate.expected_value is not None else 0.0
+        g_ev = cls.normalize_expected_value(ev_val)
+
+        # Source accuracy & sample size (uses sensible defaults when unrecorded in V1)
+        src_acc = candidate.source_historical_accuracy if candidate.source_historical_accuracy is not None else 0.75
+        src_samples = candidate.source_sample_size if candidate.source_sample_size is not None else 10
+        h_source = cls.normalize_source_reliability(src_acc, src_samples)
+
         m_market = cls.get_market_reliability(candidate.market_name)
         q_fresh = cls.normalize_freshness(candidate.data_freshness_seconds)
 
@@ -106,8 +113,9 @@ class CandidateScorer:
             + cls.DEFAULT_WEIGHT_FRESHNESS * q_fresh
         )
 
-        # Apply uncertainty penalty
-        uncertainty_penalty = (1.0 - max(0.0, min(1.0, candidate.model_confidence))) * 0.20
+        # Apply uncertainty penalty if model confidence is provided
+        confidence = candidate.model_confidence if candidate.model_confidence is not None else 1.0
+        uncertainty_penalty = (1.0 - max(0.0, min(1.0, confidence))) * 0.20
 
         composite = max(0.0, min(1.0, base_score - uncertainty_penalty))
         candidate.composite_score = round(composite, 4)
@@ -120,4 +128,4 @@ class CandidateScorer:
         for cand in candidates:
             cls.score_candidate(cand, min_prob_threshold=min_prob)
 
-        return sorted(candidates, key=lambda c: c.composite_score, reverse=True)
+        return sorted(candidates, key=lambda c: c.composite_score if c.composite_score is not None else 0.0, reverse=True)

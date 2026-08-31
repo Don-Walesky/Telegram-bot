@@ -15,6 +15,7 @@ from sportybet_booking import SportyBetBookingClient, BookingSlipResponse
 from engine import (
     BetCandidate,
     BetConstructionRequest,
+    ProbabilitySource,
     RiskProfile,
     WorkflowType,
 )
@@ -87,7 +88,7 @@ class BettingService:
                 message="SportyBet catalog empty or updating",
             )
 
-        # 3. Risk / Bet Construction Engine Optimization
+        # 3. Risk / Bet Construction Engine Optimization with explicit bookmaker implied provenance
         candidates: List[BetCandidate] = [
             BetCandidate(
                 candidate_id=f"{sel.event_id}:{sel.market_id}:{sel.outcome_id}",
@@ -103,6 +104,8 @@ class BettingService:
                 outcome_name=sel.outcome_name,
                 decimal_odds=sel.odds,
                 specifier=sel.specifier,
+                bookmaker_implied_prob=round((1.0 / sel.odds) * 100.0, 2),
+                probability_source=ProbabilitySource.BOOKMAKER_IMPLIED,
             )
             for sel in all_selections
         ]

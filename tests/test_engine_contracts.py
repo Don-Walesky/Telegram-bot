@@ -36,8 +36,8 @@ class TestEngineContracts(unittest.TestCase):
         )
 
         self.assertEqual(cand.bookmaker_implied_prob, 80.0)
-        self.assertEqual(cand.model_probability, 0.80)
-        self.assertAlmostEqual(cand.expected_value, 0.0, places=3)
+        self.assertIsNone(cand.model_probability)
+        self.assertEqual(cand.effective_probability, 80.0)
         self.assertEqual(cand.fixture_title, "Arsenal vs Chelsea")
 
     def test_bet_construction_request_defaults(self):

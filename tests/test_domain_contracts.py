@@ -6,7 +6,7 @@ Verifies structural validation, invariant enforcement, serialization, and enum i
 from datetime import datetime
 import unittest
 
-from models.bet_candidate import BetCandidate, SourceType
+from models.bet_candidate import BetCandidate, ProbabilitySource, SourceType
 from models.engine_contracts import (
     BetConstructionRequest,
     BetConstructionResult,
@@ -81,6 +81,64 @@ class TestBetCandidateContract(unittest.TestCase):
         self.assertEqual(candidate.model_probability, 0.62)
         self.assertEqual(candidate.expected_value, 0.147)
         self.assertEqual(candidate.flags, ["HIGH_VALUE"])
+
+    def test_effective_probability_hierarchy(self) -> None:
+        """Test effective_probability prioritizes model > consensus > implied."""
+        # 1. Implied only (odds 1.25 -> 80.0%)
+        cand_implied = BetCandidate(
+            candidate_id="c1",
+            event_id="e1",
+            sport="Football",
+            league="EPL",
+            home_team="A",
+            away_team="B",
+            kickoff_time=None,
+            market_id="1",
+            market_name="1X2",
+            outcome_id="1",
+            outcome_name="Home",
+            decimal_odds=1.25,
+        )
+        self.assertEqual(cand_implied.effective_probability, 80.0)
+
+        # 2. Consensus heuristic present (88.0%)
+        cand_consensus = BetCandidate(
+            candidate_id="c2",
+            event_id="e2",
+            sport="Football",
+            league="EPL",
+            home_team="A",
+            away_team="B",
+            kickoff_time=None,
+            market_id="1",
+            market_name="1X2",
+            outcome_id="1",
+            outcome_name="Home",
+            decimal_odds=1.25,
+            consensus_probability=88.0,
+            probability_source=ProbabilitySource.CONSENSUS_HEURISTIC,
+        )
+        self.assertEqual(cand_consensus.effective_probability, 88.0)
+
+        # 3. Model probability present (0.91 -> 91.0%)
+        cand_model = BetCandidate(
+            candidate_id="c3",
+            event_id="e3",
+            sport="Football",
+            league="EPL",
+            home_team="A",
+            away_team="B",
+            kickoff_time=None,
+            market_id="1",
+            market_name="1X2",
+            outcome_id="1",
+            outcome_name="Home",
+            decimal_odds=1.25,
+            consensus_probability=88.0,
+            model_probability=0.91,
+            probability_source=ProbabilitySource.PREDICTIVE_MODEL,
+        )
+        self.assertEqual(cand_model.effective_probability, 91.0)
 
     def test_invalid_odds_raises_value_error(self) -> None:
         """Test non-positive decimal odds raises ValueError."""
@@ -310,6 +368,13 @@ class TestEnumsIntegrity(unittest.TestCase):
         self.assertEqual(SourceType.TIPSTER.value, "TIPSTER")
         self.assertEqual(SourceType.CONSENSUS.value, "CONSENSUS")
         self.assertEqual(SourceType.EXTERNAL_CODE.value, "EXTERNAL_CODE")
+
+    def test_probability_source_values(self) -> None:
+        """Verify ProbabilitySource enum values."""
+        self.assertEqual(ProbabilitySource.BOOKMAKER_IMPLIED.value, "BOOKMAKER_IMPLIED")
+        self.assertEqual(ProbabilitySource.CONSENSUS_HEURISTIC.value, "CONSENSUS_HEURISTIC")
+        self.assertEqual(ProbabilitySource.PREDICTIVE_MODEL.value, "PREDICTIVE_MODEL")
+        self.assertEqual(ProbabilitySource.UNKNOWN.value, "UNKNOWN")
 
     def test_risk_profile_values(self) -> None:
         """Verify RiskProfile enum values."""

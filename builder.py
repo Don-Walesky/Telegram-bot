@@ -17,6 +17,7 @@ from config import config
 from engine import (
     BetCandidate,
     BetConstructionRequest,
+    ProbabilitySource,
     RiskProfile,
     WorkflowType,
 )
@@ -69,7 +70,7 @@ class CustomSlipBuilder:
                 sport=sport,
             )
 
-        # Map to engine domain candidates
+        # Map to engine domain candidates with explicit consensus heuristic provenance
         engine_candidates = [
             BetCandidate(
                 candidate_id=f"{c.teams}:{c.safe_market}:{c.odds}",
@@ -84,7 +85,10 @@ class CustomSlipBuilder:
                 outcome_id="custom_outcome",
                 outcome_name=c.original_pick or "Safe Pick",
                 decimal_odds=c.odds,
-                model_probability=c.consensus_probability / 100.0 if c.consensus_probability > 0 else (1.0 / c.odds),
+                bookmaker_implied_prob=round((1.0 / c.odds) * 100.0, 2),
+                consensus_probability=c.consensus_probability,
+                model_probability=None,
+                probability_source=ProbabilitySource.CONSENSUS_HEURISTIC,
             )
             for c in unstarted_candidates
         ]

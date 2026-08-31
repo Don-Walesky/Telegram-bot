@@ -2,15 +2,16 @@
 Combinatorial Accumulator Slip Optimizer Module
 Solves the multi-objective accumulator selection problem using a bounded beam search
 heuristic optimizer to maximize score utility while converging on target combined odds.
+Enforces the strict "No Bad Bets" invariant: selection quality dominates target multipliers.
 """
 
 import math
 import logging
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 from calculator import BetCalculator
-from engine.contracts import (
-    BetCandidate,
+from models.bet_candidate import BetCandidate
+from models.engine_contracts import (
     BetConstructionRequest,
     ConstructionStatusCode,
 )
@@ -113,7 +114,7 @@ class SlipOptimizer:
         if not slip:
             return -1000.0
 
-        sum_scores = sum(c.composite_score for c in slip)
+        sum_scores = sum(c.composite_score if c.composite_score is not None else 0.0 for c in slip)
         total_odds = 1.0
         for c in slip:
             total_odds *= c.decimal_odds
@@ -146,10 +147,9 @@ class SlipOptimizer:
         """
         Bounded beam search over candidate subsets to find the combination maximizing utility.
         """
-        # Beam states: List of List[BetCandidate]
         beam: List[List[BetCandidate]] = [[]]
 
-        # Consider top candidates up to 3x target count to maintain speed
+        # Consider top candidates up to 4x target count to maintain speed
         search_candidates = pool[: min(len(pool), target_count * 4)]
 
         for cand in search_candidates:

@@ -3,7 +3,7 @@ Domain Models & Engine Contracts: BetConstructionRequest & BetConstructionResult
 Defines the request parameters, result envelopes, selection items, rejection logs, and
 status enums for the Risk / Bet Construction Engine.
 
-Phase 1 Domain Contracts — Framework-independent, zero Telegram dependencies, no engine logic.
+Phase 1/7B Domain Contracts — Framework-independent, zero Telegram dependencies.
 """
 
 from dataclasses import dataclass, field
@@ -12,7 +12,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 import uuid
 
-from models.bet_candidate import BetCandidate
+from models.bet_candidate import BetCandidate, ProbabilitySource
 
 
 class WorkflowType(str, Enum):
@@ -73,7 +73,7 @@ class RejectionCategory(str, Enum):
 class SelectedBetLeg:
     """
     Individual winning candidate leg chosen for inclusion in the final betslip.
-    Derived from BetCandidate with accumulator metadata.
+    Derived from BetCandidate with accumulator metadata and explicit probability provenance.
     """
     candidate_id: str
     fixture: str
@@ -84,8 +84,12 @@ class SelectedBetLeg:
     outcome_name: str
     odds: float
     implied_probability_pct: float
+    probability_source: ProbabilitySource = ProbabilitySource.BOOKMAKER_IMPLIED
+    effective_probability_pct: float = 0.0
     model_probability_pct: Optional[float] = None
+    consensus_probability_pct: Optional[float] = None
     expected_value_pct: Optional[float] = None
+    is_heuristic_ev: bool = True
     composite_score: Optional[float] = None
     acceptance_reasons: List[str] = field(default_factory=list)
     specifier: Optional[str] = None
@@ -105,8 +109,12 @@ class SelectedBetLeg:
             "outcome_name": self.outcome_name,
             "odds": self.odds,
             "implied_probability_pct": self.implied_probability_pct,
+            "probability_source": self.probability_source.value,
+            "effective_probability_pct": self.effective_probability_pct,
             "model_probability_pct": self.model_probability_pct,
+            "consensus_probability_pct": self.consensus_probability_pct,
             "expected_value_pct": self.expected_value_pct,
+            "is_heuristic_ev": self.is_heuristic_ev,
             "composite_score": self.composite_score,
             "acceptance_reasons": self.acceptance_reasons,
             "specifier": self.specifier,
@@ -259,6 +267,7 @@ class BetConstructionResult:
     total_combined_odds: float
     estimated_joint_probability: float
     estimated_slip_ev: Optional[float] = None
+    is_heuristic_ev: bool = True
     recommended_stake: float = 0.0
     sportybet_bonus_pct: float = 0.0
     estimated_total_payout: float = 0.0
@@ -290,6 +299,7 @@ class BetConstructionResult:
             "total_combined_odds": self.total_combined_odds,
             "estimated_joint_probability": self.estimated_joint_probability,
             "estimated_slip_ev": self.estimated_slip_ev,
+            "is_heuristic_ev": self.is_heuristic_ev,
             "recommended_stake": self.recommended_stake,
             "sportybet_bonus_pct": self.sportybet_bonus_pct,
             "estimated_total_payout": self.estimated_total_payout,

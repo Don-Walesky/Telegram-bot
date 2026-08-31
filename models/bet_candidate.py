@@ -1,9 +1,9 @@
 """
-Domain Model: BetCandidate
+Domain Model: BetCandidate & ProbabilitySource
 Defines the standard normalized betting opportunity ingested from any data source
 (LiveScore fixture discovery, SportyBet live catalog, or Telegram tipster channels).
 
-Phase 1 Domain Contract — Contains NO engine scoring, EV logic, or Telegram dependencies.
+Phase 1/7B Domain Contract — Explicit probability provenance, strictly typed, zero Telegram dependencies.
 """
 
 from dataclasses import dataclass, field
@@ -21,6 +21,17 @@ class SourceType(str, Enum):
     EXTERNAL_CODE = "EXTERNAL_CODE"
 
 
+class ProbabilitySource(str, Enum):
+    """
+    Identifiable provenance of probability values associated with a selection.
+    Strictly prevents treating bookmaker-implied odds or static heuristics as predictive AI models.
+    """
+    BOOKMAKER_IMPLIED = "BOOKMAKER_IMPLIED"       # (1 / decimal_odds) * 100% (Pricing baseline)
+    CONSENSUS_HEURISTIC = "CONSENSUS_HEURISTIC"   # Multi-source consensus tables (Heuristic)
+    PREDICTIVE_MODEL = "PREDICTIVE_MODEL"         # Genuine statistical ML model (Future infrastructure)
+    UNKNOWN = "UNKNOWN"
+
+
 @dataclass
 class BetCandidate:
     """
@@ -29,9 +40,9 @@ class BetCandidate:
     Field Availability Status in Current Codebase:
     - Currently Available: candidate_id, event_id, sport, league, home_team, away_team,
       kickoff_time, market_id, market_name, outcome_id, outcome_name, decimal_odds,
-      bookmaker_implied_prob, source_type, source_name.
-    - Intentionally Optional / Future Infrastructure: model_probability, model_confidence,
-      expected_value, source_historical_accuracy, source_sample_size, composite_score.
+      bookmaker_implied_prob, consensus_probability, probability_source, source_type, source_name.
+    - Strictly Nullable / Future Infrastructure: model_probability, model_confidence,
+      source_historical_accuracy, source_sample_size, composite_score.
       These are nullable so the contract does not fabricate non-existent data.
     """
 
@@ -52,18 +63,21 @@ class BetCandidate:
     decimal_odds: float
     specifier: Optional[str] = None
 
-    # Probability & Value Metrics
-    # bookmaker_implied_prob is required (e.g. 80.0 for 1.25 odds)
-    bookmaker_implied_prob: float = 0.0
-    # model_probability, model_confidence, expected_value are Optional (None when no ML model exists)
-    model_probability: Optional[float] = None
-    model_confidence: Optional[float] = None
-    expected_value: Optional[float] = None
+    # Probability Metrics & Provenance
+    bookmaker_implied_prob: float = 0.0                   # Percentage (e.g. 80.0 for 1.25 odds)
+    consensus_probability: Optional[float] = None          # Percentage (e.g. 85.0 from analyzer tables)
+    model_probability: Optional[float] = None              # Decimal [0.0, 1.0] from genuine ML model ONLY
+    model_confidence: Optional[float] = None               # Confidence [0.0, 1.0] (None in V1)
+    probability_source: ProbabilitySource = ProbabilitySource.BOOKMAKER_IMPLIED
+
+    # Value Metrics
+    expected_value: Optional[float] = None                 # (Prob * Odds) - 1.0
+    expected_value_is_heuristic: bool = True               # True if based on consensus/implied
 
     # Source & Provenance
     source_type: SourceType = SourceType.SPORTYBET
     source_name: str = "SportyBet Catalog"
-    source_historical_accuracy: Optional[float] = None  # None until settlement tracking exists
+    source_historical_accuracy: Optional[float] = None     # None until settlement tracking exists
     source_sample_size: Optional[int] = None
     ingested_at: datetime = field(default_factory=datetime.now)
     data_freshness_seconds: float = 0.0
@@ -87,6 +101,11 @@ class BetCandidate:
                 f"Bookmaker implied probability must be between 0.0 and 100.0, got {self.bookmaker_implied_prob}."
             )
 
+        if self.consensus_probability is not None and not (0.0 <= self.consensus_probability <= 100.0):
+            raise ValueError(
+                f"Consensus probability must be between 0.0 and 100.0, got {self.consensus_probability}."
+            )
+
         if self.model_probability is not None and not (0.0 <= self.model_probability <= 1.0):
             raise ValueError(
                 f"Model probability must be between 0.0 and 1.0, got {self.model_probability}."
@@ -96,6 +115,21 @@ class BetCandidate:
             raise ValueError(
                 f"Model confidence must be between 0.0 and 1.0, got {self.model_confidence}."
             )
+
+    @property
+    def effective_probability(self) -> float:
+        """
+        Returns the active evaluation win probability percentage in [0.0, 100.0].
+        Hierarchy:
+        1. Model Probability (if genuine ML model exists)
+        2. Consensus Heuristic Probability (if multi-source consensus exists)
+        3. Bookmaker-Implied Probability (fallback baseline from odds)
+        """
+        if self.model_probability is not None and self.model_probability > 0:
+            return round(self.model_probability * 100.0, 2)
+        if self.consensus_probability is not None and self.consensus_probability > 0:
+            return round(self.consensus_probability, 2)
+        return self.bookmaker_implied_prob
 
     @property
     def fixture_title(self) -> str:
@@ -119,9 +153,13 @@ class BetCandidate:
             "decimal_odds": self.decimal_odds,
             "specifier": self.specifier,
             "bookmaker_implied_prob": self.bookmaker_implied_prob,
+            "consensus_probability": self.consensus_probability,
             "model_probability": self.model_probability,
             "model_confidence": self.model_confidence,
+            "probability_source": self.probability_source.value,
+            "effective_probability": self.effective_probability,
             "expected_value": self.expected_value,
+            "expected_value_is_heuristic": self.expected_value_is_heuristic,
             "source_type": self.source_type.value,
             "source_name": self.source_name,
             "source_historical_accuracy": self.source_historical_accuracy,

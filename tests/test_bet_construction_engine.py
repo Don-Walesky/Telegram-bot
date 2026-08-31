@@ -1,11 +1,13 @@
 """
 Unit Tests for Unified BetConstructionEngine Module
+Verifies end-to-end pipeline execution, probability provenance propagation,
+and safety constraints handling.
 """
 
 import unittest
 from datetime import datetime, timedelta
-from engine.contracts import (
-    BetCandidate,
+from models.bet_candidate import BetCandidate, ProbabilitySource
+from models.engine_contracts import (
     BetConstructionRequest,
     ConstructionStatusCode,
     RiskProfile,
@@ -31,12 +33,13 @@ class TestBetConstructionEngine(unittest.TestCase):
                 outcome_id="12",
                 outcome_name="1X",
                 decimal_odds=1.20,
-                model_probability=0.85,
+                consensus_probability=85.0,
+                probability_source=ProbabilitySource.CONSENSUS_HEURISTIC,
             )
             for i in range(12)
         ]
 
-    def test_build_bet_slip_success(self):
+    def test_build_bet_slip_success_with_consensus(self):
         req = BetConstructionRequest(
             workflow=WorkflowType.BET_BUILDER,
             risk_profile=RiskProfile.BALANCED,
@@ -53,6 +56,47 @@ class TestBetConstructionEngine(unittest.TestCase):
         self.assertGreater(result.total_combined_odds, 2.00)
         self.assertGreater(result.estimated_joint_probability, 30.0)
         self.assertIn("OPTIMIZED BETSLIP & RISK SUMMARY", result.explanation_summary)
+        self.assertEqual(
+            result.selected_candidates[0].probability_source,
+            ProbabilitySource.CONSENSUS_HEURISTIC,
+        )
+
+    def test_build_bet_slip_with_implied_only(self):
+        implied_cands = [
+            BetCandidate(
+                candidate_id=f"imp_{i}",
+                event_id=f"ev_imp_{i}",
+                sport="Football",
+                league=f"League {i % 3}",
+                home_team=f"TeamA_{i}",
+                away_team=f"TeamB_{i}",
+                kickoff_time=self.future_time,
+                market_id="18",
+                market_name="Double Chance",
+                outcome_id="12",
+                outcome_name="1X",
+                decimal_odds=1.25,
+            )
+            for i in range(8)
+        ]
+
+        req = BetConstructionRequest(
+            workflow=WorkflowType.STANDARD_SCAN,
+            risk_profile=RiskProfile.BALANCED,
+            desired_game_count=4,
+            min_game_count=2,
+            min_selection_probability=75.0,
+            candidates=implied_cands,
+        )
+
+        result = BetConstructionEngine.build_bet_slip(req)
+        self.assertTrue(result.success)
+        self.assertEqual(len(result.selected_candidates), 4)
+        self.assertEqual(
+            result.selected_candidates[0].probability_source,
+            ProbabilitySource.BOOKMAKER_IMPLIED,
+        )
+        self.assertIsNone(result.selected_candidates[0].model_probability_pct)
 
     def test_empty_candidates_handling(self):
         req = BetConstructionRequest(candidates=[])

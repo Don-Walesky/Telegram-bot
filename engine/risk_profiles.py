@@ -2,20 +2,24 @@
 Risk Profiles & Invariants Manager Module
 Defines formal mathematical boundaries, expected value minimums, odds bounds,
 and Kelly stake sizing fractions for Conservative, Balanced, Aggressive, Very Aggressive, and Custom profiles.
+
+NOTE: Numerical thresholds in this module are ENGINEERING DEFAULTS established from domain betting rules,
+pending empirical calibration when historical settled outcome datasets become available.
 """
 
 from dataclasses import dataclass
 from typing import Tuple
-from engine.contracts import BetCandidate, RiskProfile
+from models.bet_candidate import BetCandidate
+from models.engine_contracts import RiskProfile
 
 
 @dataclass(frozen=True)
 class RiskProfileDefinition:
     profile: RiskProfile
-    min_probability: float  # Percentage (e.g. 85.0)
-    max_probability: float  # Percentage (e.g. 98.0)
-    min_odds: float        # Decimal odds (e.g. 1.05)
-    max_odds: float        # Decimal odds (e.g. 1.25)
+    min_probability: float  # Percentage (e.g. 85.0) - Engineering Default
+    max_probability: float  # Percentage (e.g. 98.0) - Engineering Default
+    min_odds: float        # Decimal odds (e.g. 1.05) - Engineering Default
+    max_odds: float        # Decimal odds (e.g. 1.28) - Engineering Default
     min_ev: float          # EV threshold (e.g. -0.02 for conservative, 0.00 for balanced)
     kelly_fraction: float  # Fraction of Full Kelly (0.125 for Eighth, 0.25 for Quarter)
     target_combined_odds_min: float
@@ -35,7 +39,7 @@ class RiskProfileManager:
             kelly_fraction=0.125,
             target_combined_odds_min=1.50,
             target_combined_odds_max=3.00,
-            description="Capital preservation; maximize joint probability; minimize variance.",
+            description="Capital preservation; maximize joint probability; minimize variance. (Engineering Default)",
         ),
         RiskProfile.BALANCED: RiskProfileDefinition(
             profile=RiskProfile.BALANCED,
@@ -47,7 +51,7 @@ class RiskProfileManager:
             kelly_fraction=0.25,
             target_combined_odds_min=2.50,
             target_combined_odds_max=6.00,
-            description="Balance probability and expected return; Sharpe-optimal accumulator.",
+            description="Balance probability and expected return; Sharpe-optimal accumulator. (Engineering Default)",
         ),
         RiskProfile.AGGRESSIVE: RiskProfileDefinition(
             profile=RiskProfile.AGGRESSIVE,
@@ -59,7 +63,7 @@ class RiskProfileManager:
             kelly_fraction=0.50,
             target_combined_odds_min=5.00,
             target_combined_odds_max=15.00,
-            description="Exploit higher expected value with greater variance tolerance.",
+            description="Exploit higher expected value with greater variance tolerance. (Engineering Default)",
         ),
         RiskProfile.VERY_AGGRESSIVE: RiskProfileDefinition(
             profile=RiskProfile.VERY_AGGRESSIVE,
@@ -71,7 +75,7 @@ class RiskProfileManager:
             kelly_fraction=0.50,
             target_combined_odds_min=10.00,
             target_combined_odds_max=50.00,
-            description="High multiplier long-shot accumulators under positive EV discipline.",
+            description="High multiplier long-shot accumulators under positive EV discipline. (Engineering Default)",
         ),
         RiskProfile.CUSTOM: RiskProfileDefinition(
             profile=RiskProfile.CUSTOM,
@@ -95,18 +99,15 @@ class RiskProfileManager:
     def validate_candidate(cls, candidate: BetCandidate, profile: RiskProfile) -> Tuple[bool, str]:
         """
         Validates if a candidate complies with the risk profile's mathematical invariants.
+        Uses candidate.effective_probability to evaluate probability thresholds.
         Returns:
             Tuple of (is_valid, rejection_reason)
         """
         defn = cls.get_profile_definition(profile)
-        prob_pct = (
-            candidate.model_probability * 100.0
-            if candidate.model_probability > 0
-            else candidate.bookmaker_implied_prob
-        )
+        prob_pct = candidate.effective_probability
 
         if prob_pct < defn.min_probability:
-            return False, f"Probability ({prob_pct:.1f}%) is below {profile.value} minimum ({defn.min_probability:.1f}%)."
+            return False, f"Effective probability ({prob_pct:.1f}%) is below {profile.value} minimum ({defn.min_probability:.1f}%)."
 
         if candidate.decimal_odds < defn.min_odds:
             return False, f"Odds ({candidate.decimal_odds:.2f}) below {profile.value} minimum ({defn.min_odds:.2f})."
@@ -114,7 +115,7 @@ class RiskProfileManager:
         if candidate.decimal_odds > defn.max_odds:
             return False, f"Odds ({candidate.decimal_odds:.2f}) exceeds {profile.value} maximum ({defn.max_odds:.2f})."
 
-        if candidate.expected_value < defn.min_ev:
+        if candidate.expected_value is not None and candidate.expected_value < defn.min_ev:
             return False, f"Expected Value ({candidate.expected_value:+.2%}) is below {profile.value} minimum ({defn.min_ev:+.2%})."
 
         return True, ""

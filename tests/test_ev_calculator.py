@@ -1,9 +1,10 @@
 """
 Unit Tests for Expected Value & De-vigging Calculator Module
+Verifies EV mathematics, de-vigging, and probability provenance enrichment.
 """
 
 import unittest
-from engine.contracts import BetCandidate
+from models.bet_candidate import BetCandidate, ProbabilitySource
 from engine.ev_calculator import EVCalculator
 
 
@@ -42,10 +43,11 @@ class TestEVCalculator(unittest.TestCase):
         self.assertAlmostEqual(fair_probs[1], 0.50, places=4)
         self.assertAlmostEqual(sum(fair_probs), 1.00, places=4)
 
-    def test_enrich_candidate(self):
+    def test_enrich_candidate_model_probability(self):
+        """Candidate with genuine model probability gets model EV and PREDICTIVE_MODEL source."""
         cand = BetCandidate(
-            candidate_id="cand_test",
-            event_id="ev_test",
+            candidate_id="cand_test_model",
+            event_id="ev_test_1",
             sport="Football",
             league="EPL",
             home_team="Team A",
@@ -63,6 +65,58 @@ class TestEVCalculator(unittest.TestCase):
         self.assertEqual(enriched.bookmaker_implied_prob, 80.0)
         # EV = (0.85 * 1.25) - 1.0 = 1.0625 - 1.0 = +0.0625
         self.assertAlmostEqual(enriched.expected_value, 0.0625, places=4)
+        self.assertFalse(enriched.expected_value_is_heuristic)
+        self.assertEqual(enriched.probability_source, ProbabilitySource.PREDICTIVE_MODEL)
+
+    def test_enrich_candidate_consensus_probability(self):
+        """Candidate with consensus heuristic gets heuristic EV and CONSENSUS_HEURISTIC source."""
+        cand = BetCandidate(
+            candidate_id="cand_test_consensus",
+            event_id="ev_test_2",
+            sport="Football",
+            league="La Liga",
+            home_team="Team C",
+            away_team="Team D",
+            kickoff_time=None,
+            market_id="10",
+            market_name="Over 1.5 Goals",
+            outcome_id="1",
+            outcome_name="Over",
+            decimal_odds=1.20,
+            consensus_probability=88.0,
+        )
+
+        enriched = EVCalculator.enrich_candidate(cand)
+        self.assertEqual(enriched.bookmaker_implied_prob, 83.33)
+        # EV = (0.88 * 1.20) - 1.0 = 1.056 - 1.0 = +0.056
+        self.assertAlmostEqual(enriched.expected_value, 0.0560, places=4)
+        self.assertTrue(enriched.expected_value_is_heuristic)
+        self.assertEqual(enriched.probability_source, ProbabilitySource.CONSENSUS_HEURISTIC)
+        self.assertIsNone(enriched.model_probability)
+
+    def test_enrich_candidate_implied_only(self):
+        """Candidate with only odds gets 0.0 EV and BOOKMAKER_IMPLIED source without fabricating model_prob."""
+        cand = BetCandidate(
+            candidate_id="cand_test_implied",
+            event_id="ev_test_3",
+            sport="Football",
+            league="Serie A",
+            home_team="Team E",
+            away_team="Team F",
+            kickoff_time=None,
+            market_id="1",
+            market_name="1X2",
+            outcome_id="1",
+            outcome_name="Home",
+            decimal_odds=1.50,
+        )
+
+        enriched = EVCalculator.enrich_candidate(cand)
+        self.assertEqual(enriched.bookmaker_implied_prob, 66.67)
+        self.assertEqual(enriched.expected_value, 0.0)
+        self.assertTrue(enriched.expected_value_is_heuristic)
+        self.assertEqual(enriched.probability_source, ProbabilitySource.BOOKMAKER_IMPLIED)
+        self.assertIsNone(enriched.model_probability)
 
 
 if __name__ == "__main__":
