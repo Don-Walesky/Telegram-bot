@@ -126,7 +126,7 @@ class CustomSlipBuilder:
                     original_pick=leg.outcome_name,
                     safe_market=leg.market_name,
                     odds=leg.odds,
-                    consensus_probability=leg.model_probability_pct,
+                    consensus_probability=leg.effective_probability_pct,
                     agreed_sources=["Consensus Engine"],
                     match_date=match_date,
                     kickoff_time=leg.kickoff_time,
