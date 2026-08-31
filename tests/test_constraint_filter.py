@@ -136,6 +136,51 @@ class TestConstraintFilter(unittest.TestCase):
         self.assertEqual(len(rejected), 1)
         self.assertEqual(rejected[0].rejection_category, RejectionCategory.STALE_DATA)
 
+    def test_fallback_cannot_bypass_hard_constraints(self):
+        """
+        Safety Test (Priority 3):
+        Hard constraint filter must never allow started or invalid odds candidates through,
+        regardless of whether fallback is enabled on request.
+        """
+        bad_candidates = [
+            # Started match
+            BetCandidate(
+                candidate_id="c_started",
+                event_id="e_s",
+                sport="Football",
+                league="EPL",
+                home_team="A",
+                away_team="B",
+                kickoff_time=datetime.now() - timedelta(minutes=10),
+                market_id="1",
+                market_name="1X2",
+                outcome_id="1",
+                outcome_name="1",
+                decimal_odds=1.20,
+            ),
+            # Invalid odds
+            BetCandidate(
+                candidate_id="c_invalid_odds",
+                event_id="e_i",
+                sport="Football",
+                league="EPL",
+                home_team="C",
+                away_team="D",
+                kickoff_time=self.future_time,
+                market_id="1",
+                market_name="1X2",
+                outcome_id="1",
+                outcome_name="1",
+                decimal_odds=1.005,
+            ),
+        ]
+
+        req = BetConstructionRequest(allow_fallback_reduction=True)
+        eligible, rejected = HardConstraintFilter.evaluate_candidates(bad_candidates, req)
+
+        self.assertEqual(len(eligible), 0)
+        self.assertEqual(len(rejected), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

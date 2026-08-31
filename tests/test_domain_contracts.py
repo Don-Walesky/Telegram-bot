@@ -140,6 +140,56 @@ class TestBetCandidateContract(unittest.TestCase):
         )
         self.assertEqual(cand_model.effective_probability, 91.0)
 
+    def test_missing_model_probability_remains_none(self) -> None:
+        """
+        Priority 1 Test:
+        When only decimal odds or consensus probabilities are provided,
+        model_probability must remain None (never fabricated as 1/odds).
+        """
+        cand = BetCandidate(
+            candidate_id="c_none",
+            event_id="e_none",
+            sport="Football",
+            league="EPL",
+            home_team="A",
+            away_team="B",
+            kickoff_time=None,
+            market_id="1",
+            market_name="1X2",
+            outcome_id="1",
+            outcome_name="Home",
+            decimal_odds=1.25,
+        )
+        self.assertIsNone(cand.model_probability)
+        self.assertEqual(cand.bookmaker_implied_prob, 80.0)
+        self.assertEqual(cand.probability_source, ProbabilitySource.BOOKMAKER_IMPLIED)
+
+    def test_heuristic_probability_explicitly_identified(self) -> None:
+        """
+        Priority 1 Test:
+        Consensus heuristic probability is explicitly tracked under CONSENSUS_HEURISTIC source.
+        """
+        cand = BetCandidate(
+            candidate_id="c_heur",
+            event_id="e_heur",
+            sport="Football",
+            league="EPL",
+            home_team="A",
+            away_team="B",
+            kickoff_time=None,
+            market_id="18",
+            market_name="Double Chance",
+            outcome_id="12",
+            outcome_name="1X",
+            decimal_odds=1.20,
+            consensus_probability=85.0,
+            probability_source=ProbabilitySource.CONSENSUS_HEURISTIC,
+        )
+        self.assertIsNone(cand.model_probability)
+        self.assertEqual(cand.consensus_probability, 85.0)
+        self.assertEqual(cand.probability_source, ProbabilitySource.CONSENSUS_HEURISTIC)
+        self.assertEqual(cand.effective_probability, 85.0)
+
     def test_invalid_odds_raises_value_error(self) -> None:
         """Test non-positive decimal odds raises ValueError."""
         with self.assertRaises(ValueError):
