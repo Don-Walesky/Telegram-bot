@@ -6,9 +6,9 @@
     ],
     "extraPaths": [
         ".",
-        "venv/Lib/site-packages"
+        "../venv/Lib/site-packages"
     ],
-    "venvPath": ".",
+    "venvPath": "..",
     "venv": "venv",
     "reportMissingImports": false,
     "reportMissingTypeStubs": false
